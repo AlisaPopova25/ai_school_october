@@ -89,7 +89,11 @@ SHAPLEY_FEATURES = ["motion", "hr", "clock"]
 # разложения Шепли (только сон/бодрствование; в таблицы и рисунки статьи не идут)
 EXTRA_SETS = {"Clock only": ["clock"], "Motion, Clock": ["motion", "clock"], "HR, Clock": ["hr", "clock"]}
 ALL_SETS = {**FEATURE_SETS, **EXTRA_SETS}
-SHAPLEY_METRICS = {"auc": "AUC", "ap_wake": "AP wake", "kappa": "κ при 90% сна", "f1_wake": "F1 wake при 90% сна"}
+SHAPLEY_METRICS = {"accuracy": "accuracy при 90% сна", "auc": "AUC", "ap_wake": "AP wake", "kappa": "κ при 90% сна",
+                   "f1_wake": "F1 wake при 90% сна", "f1_macro": "macro F1 при 90% сна"}
+# метрики классификации в таблице качества на подмножествах (сон найден = 0.9)
+SUBSET_COLUMNS = ["accuracy", "sleep_correct", "wake_correct", "kappa", "auc", "ap_wake", "ppv_wake", "f1_wake",
+                  "f1_sleep", "f1_macro"]
 SHAP_STAGE = "SHAP"  # этап обучения: модель на Motion, HR, Clock + SHAP-значения отложенного человека
 TARGETS = {"sw": "сон/бодрствование", "3": "3 класса"}
 COLORS = {"Motion only": "#3b5b92", "HR only": "#f0a202", "Motion, HR": "#39ad48", "Motion, HR, Clock": "#d3494e"}
@@ -233,8 +237,12 @@ def shap_loso(data, clf, bar=None, status=""):
 def shapley_baseline(metric, y):
     """Качество модели без признаков (случайной): от него отсчитывается вклад признаков."""
     wake = np.mean(y == 0)
-    # F1 wake при 90% сна: случайная модель говорит «wake» в 10% эпох -> recall 0.1, precision = доля wake
-    return {"auc": 0.5, "ap_wake": wake, "kappa": 0.0, "f1_wake": 2 * wake * 0.1 / (wake + 0.1)}[metric]
+    # случайная модель с «сон найден» = 0.9 говорит «сон» в 90% эпох независимо от правды:
+    # wake найден 0.1, precision wake = доля wake, precision сна = доля сна
+    f1_wake = 2 * wake * 0.1 / (wake + 0.1)
+    f1_sleep = 2 * (1 - wake) * 0.9 / ((1 - wake) + 0.9)
+    return {"accuracy": 0.9 * (1 - wake) + 0.1 * wake, "auc": 0.5, "ap_wake": wake, "kappa": 0.0,
+            "f1_wake": f1_wake, "f1_macro": (f1_wake + f1_sleep) / 2}[metric]
 
 
 def shapley_tables(data, models, y_all):
@@ -251,7 +259,7 @@ def shapley_tables(data, models, y_all):
                      if r["sensitivity_target"] == 0.9)
             quality[frozenset(features)] = m
             subset_rows.append(dict(classifier=clf, feature_set=fs, n_features=len(features),
-                                    **{k: m[k] for k in SHAPLEY_METRICS}))
+                                    **{k: m[k] for k in SUBSET_COLUMNS}))
         for metric in SHAPLEY_METRICS:
             base = shapley_baseline(metric, y_all)
             v = {S: m[metric] - base for S, m in quality.items()}
@@ -327,22 +335,35 @@ def bland_altman(probas3, y3s):
     return pd.DataFrame(rows)
 
 
+def three_class_quality(y3, pred):
+    """Accuracy, κ, доля найденных эпох каждого класса и F1 — для готового трёхклассового предсказания."""
+    found = {f"{name}_correct": np.mean(pred[y3 == c] == c) if np.any(y3 == c) else np.nan
+             for c, name in enumerate(["wake", "nrem", "rem"])}
+    return dict(accuracy=np.mean(pred == y3), kappa=cohen_kappa_score(y3, pred), **found, **sl.three_class_f1(y3, pred))
+
+
+def subject_quality(y, pred, p_sleep=None):
+    """Метрики классификации сна/бодрствования одного человека (у кого нет wake — только accuracy и сон)."""
+    has_wake = np.any(y == 0)
+    f1 = sl.sw_f1(y, pred)
+    return dict(accuracy=np.mean(pred == y), wake_correct=np.mean(pred[y == 0] == 0) if has_wake else np.nan,
+                sleep_correct=np.mean(pred[y == 1] == 1), kappa=cohen_kappa_score(y, pred) if has_wake else np.nan,
+                auc=roc_auc_score(y, p_sleep) if has_wake and p_sleep is not None else np.nan,
+                f1_wake=f1["f1_wake"] if has_wake else np.nan, f1_sleep=f1["f1_sleep"],
+                f1_macro=f1["f1_macro"] if has_wake else np.nan)
+
+
 def per_subject(p_sw, y_sw):
     """Рис. 6 (порог P(wake) ≥ 0.3) и рис. 7 (порог под каждого человека)."""
     per6, per7 = [], []
     for s in sl.SUBJECTS:
         y = y_sw[s]
         pred = np.where(p_sw[s][:, 0] >= THETA_WAKE, 0, 1)
-        has_wake = np.any(y == 0)
-        per6.append(dict(subject=s, accuracy=np.mean(pred == y),
-                         wake_correct=np.mean(pred[y == 0] == 0) if has_wake else np.nan,
-                         sleep_correct=np.mean(pred[y == 1] == 1), kappa=cohen_kappa_score(y, pred),
-                         f1_wake=sl.sw_f1(y, pred)["f1_wake"] if has_wake else np.nan))
+        per6.append(dict(subject=s, **subject_quality(y, pred, p_sw[s][:, 1])))
         for tpr in SENSITIVITIES:
             threshold = np.quantile(p_sw[s][y == 1, 1], 1 - tpr)
             pred = (p_sw[s][:, 1] >= threshold).astype(int)
-            per7.append(dict(subject=s, tpr=tpr, accuracy=np.mean(pred == y),
-                             wake_correct=np.mean(pred[y == 0] == 0) if has_wake else np.nan))
+            per7.append(dict(subject=s, tpr=tpr, **subject_quality(y, pred)))
     return pd.DataFrame(per6), pd.DataFrame(per7)
 
 
@@ -566,7 +587,7 @@ def fig_shapley_auc(subsets, values, models):
 
 
 def fig_shapley_metrics(values, models):
-    fig, axes = plt.subplots(2, 2, figsize=(16, 9))
+    fig, axes = plt.subplots(2, 3, figsize=(20, 9))
     for ax, (metric, name) in zip(axes.flat, SHAPLEY_METRICS.items()):
         d = values[values.metric == metric]
         feature_bars(ax, d, "shapley", models, f"{name}: случайная модель {d.baseline.iloc[0]:.3f}",
@@ -582,12 +603,14 @@ def fig_shapley_share(values, models):
     cols = [(m, f) for m in SHAPLEY_METRICS for f in SHAPLEY_FEATURES]
     grid = np.array([[values[(values.classifier == c) & (values.metric == m) & (values.feature == f)].share.iloc[0]
                       for m, f in cols] for c in models]) * 100
-    fig, ax = plt.subplots(figsize=(15, 1.2 + 0.7 * len(models)))
+    fig, ax = plt.subplots(figsize=(20, 1.2 + 0.7 * len(models)))
     im = ax.imshow(grid, cmap="RdBu_r", vmin=-100, vmax=100, aspect="auto")
     for i in range(len(models)):
         for j in range(len(cols)):
             ax.text(j, i, f"{grid[i, j]:.0f}%", ha="center", va="center", fontsize=8)
-    ax.set_xticks(range(len(cols)), [f"{SHAPLEY_METRICS[m].split(' ')[0]}\n{f}" for m, f in cols], fontsize=8)
+    short = {"accuracy": "accuracy", "auc": "AUC", "ap_wake": "AP wake", "kappa": "κ", "f1_wake": "F1 wake",
+             "f1_macro": "macro F1"}
+    ax.set_xticks(range(len(cols)), [f"{short[m]}\n{f}" for m, f in cols], fontsize=8)
     ax.set_yticks(range(len(models)), models)
     for j in range(len(SHAPLEY_FEATURES), len(cols), len(SHAPLEY_FEATURES)):
         ax.axvline(j - 0.5, color="k", lw=1)
@@ -596,15 +619,25 @@ def fig_shapley_share(values, models):
     save(fig, "fig_shapley_share.png")
 
 
+def swarm_offsets(x, rng, half_width=0.4, bins=80):
+    """Вертикальный разброс точек ∝ плотности SHAP-значений рядом: где эпох много, «рой» толще (как в shap)."""
+    counts, edges = np.histogram(x, bins=bins)
+    density = counts[np.clip(np.digitize(x, edges[1:-1]), 0, bins - 1)] / max(counts.max(), 1)
+    return rng.uniform(-1, 1, len(x)) * half_width * density
+
+
 def fig_shap_beeswarm(shap_values, models):
     fig, axes = model_grid(models)
     rng = np.random.default_rng(0)
     for ax, clf in zip(axes.flat, models):
         values, X = shap_values[clf]
         for j, f in enumerate(SHAPLEY_FEATURES):
-            rank = pd.Series(X[:, j]).rank(pct=True).values  # цвет — перцентиль значения признака
-            sc = ax.scatter(values[:, j], j + rng.uniform(-0.3, 0.3, len(values)), c=rank, cmap="coolwarm", s=3,
-                            alpha=.6, vmin=0, vmax=1)
+            # цвет — значение признака: синий ≤ 5-го перцентиля, красный ≥ 95-го, между ними — плавно (как в shap)
+            low, high = np.quantile(X[:, j], [0.05, 0.95])
+            color = np.clip((X[:, j] - low) / (high - low), 0, 1) if high > low else np.full(len(X), 0.5)
+            order = rng.permutation(len(values))  # случайный порядок рисования: ни один цвет не закрывает другой
+            sc = ax.scatter(values[order, j], j + swarm_offsets(values[:, j], rng)[order], c=color[order],
+                            cmap="coolwarm", s=3, alpha=.7, vmin=0, vmax=1)
         ax.axvline(0, color="k", lw=.6)
         ax.set_yticks(range(len(SHAPLEY_FEATURES)),
                       [f"{f}\n|SHAP| {np.abs(values[:, j]).mean():.3f}" for j, f in enumerate(SHAPLEY_FEATURES)])
@@ -612,9 +645,11 @@ def fig_shap_beeswarm(shap_values, models):
         ax.set_xlabel("SHAP: сдвиг P(сон) (> 0 — к сну, < 0 — к бодрствованию)")
         ax.set_title(clf, fontweight="bold")
         style(ax)
-        plt.colorbar(sc, ax=ax, label="значение признака (перцентиль)")
-    fig.suptitle("SHAP-значения по эпохам (Motion, HR, Clock, out-of-fold): синий — малое значение признака, "
-                 "красный — большое", fontsize=13)
+        bar = plt.colorbar(sc, ax=ax, ticks=[0, 1])
+        bar.ax.set_yticklabels(["мало\n(≤5%)", "много\n(≥95%)"])
+        bar.set_label("значение признака")
+    fig.suptitle("SHAP-значения по эпохам (Motion, HR, Clock, out-of-fold)\nточка — эпоха; синий — малое значение "
+                 "признака, красный — большое; толщина роя — сколько эпох с таким SHAP", fontsize=12)
     save(fig, "fig_shap_beeswarm_models.png")
 
 
@@ -743,14 +778,14 @@ def main():
             for r in sleep_wake_metrics(Y_sw, P_sw):
                 sw_rows.append(dict(classifier=clf, feature_set=fs, **r))
             r6 = sl.three_class_at_wake_fpr(Y_3, P_3, 0.4)
-            fixed = sl.three_class_f1(Y_3, sl.fixed_threshold_predict(P_3, THETA_WAKE, THETA_REM))
+            fixed = three_class_quality(Y_3, sl.fixed_threshold_predict(P_3, THETA_WAKE, THETA_REM))
             tc_rows.append(dict(classifier=clf, feature_set=fs, wake_correct=r6["wake_correct"],
                                 nrem_correct=r6["nrem_correct"], rem_correct=r6["rem_correct"],
+                                accuracy_balanced=r6["balanced_accuracy"], kappa_balanced=r6["balanced_kappa"],
                                 best_accuracy=r6["best_accuracy"], kappa=r6["best_kappa"],
                                 f1_macro_best=r6["best_f1_macro"], f1_macro_balanced=r6["balanced_f1_macro"],
-                                f1_rem_balanced=r6["balanced_f1_rem"], f1_wake_fixed=fixed["f1_wake"],
-                                f1_nrem_fixed=fixed["f1_nrem"], f1_rem_fixed=fixed["f1_rem"],
-                                f1_macro_fixed=fixed["f1_macro"]))
+                                f1_rem_balanced=r6["balanced_f1_rem"],
+                                **{f"{k}_fixed": v for k, v in fixed.items()}))
             curves[(clf, fs)] = pd.DataFrame([sl.three_class_at_wake_fpr(Y_3, P_3, f)
                                               for f in np.linspace(0.05, 0.95, 19)])
             ba = bland_altman(p_3, y_3).assign(classifier=clf, feature_set=fs)

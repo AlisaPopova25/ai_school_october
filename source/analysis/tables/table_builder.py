@@ -96,14 +96,15 @@ class TableBuilder(object):
         """Added table: F1 at the same sensitivity thresholds as print_table_sw (that table is unchanged)."""
         attributed_classifier = classifier_summary.attributed_classifier
         print('\\begin{table}  \\caption{F1 for sleep/wake by ' + attributed_classifier.name +
-              ' (wake = positive class for F1 wake)} \\begin{tabular}{l*{5}{c}} '
-              '& Sleep correct (sensitivity) & Wake correct & F1 wake & F1 sleep & Macro F1 \\\\ ')
+              ' (wake = positive class for F1 wake)} \\begin{tabular}{l*{7}{c}} '
+              '& Sleep correct (sensitivity) & Accuracy & Wake correct & $\\kappa$ & F1 wake & F1 sleep & Macro F1 \\\\ ')
         for feature_set, raw_performances in classifier_summary.performance_dictionary.items():
             print('\\hline ' + FeatureSetService.get_label(list(feature_set)) + ' &')
             thresholds, summaries = PerformanceSummarizer.summarize_thresholds(raw_performances)
             for index, (threshold, performance) in enumerate(zip(thresholds, summaries)):
                 prefix = '' if index == 0 else '& '
-                print(prefix + str(round(threshold, 3)) + ' & ' + str(round(performance.wake_correct, 3)) + ' & ' +
+                print(prefix + str(round(threshold, 3)) + ' & ' + str(round(performance.accuracy, 3)) + ' & ' +
+                      str(round(performance.wake_correct, 3)) + ' & ' + str(round(performance.kappa, 3)) + ' & ' +
                       str(round(performance.f1_wake, 3)) + ' & ' + str(round(performance.f1_sleep, 3)) + ' & ' +
                       str(round(performance.f1_macro, 3)) + '  \\\\')
         print('\\hline \\end{tabular} \\end{table}')
@@ -111,12 +112,14 @@ class TableBuilder(object):
     @staticmethod
     def print_table_three_class_f1(classifier_summaries):
         """Added table: macro and per-class F1 at the best-accuracy point used for kappa in Table 6."""
-        print('\\begin{tabular}{l | l | c | c | c | c } & & Macro F1 & F1 wake & F1 NREM & F1 REM \\\\')
+        print('\\begin{tabular}{l | l | c | c | c | c | c | c } & & Accuracy & $\\kappa$ & Macro F1 & F1 wake & '
+              'F1 NREM & F1 REM \\\\')
         for classifier_summary in classifier_summaries:
             name = classifier_summary.attributed_classifier.name
             for index, (feature_set, summary) in enumerate(classifier_summary.performance_dictionary.items()):
                 label = FeatureSetService.get_label(list(feature_set))
                 print(('\\hline ' + name if index == 0 else '') + ' & ' + label + ' & ' +
+                      str(round(summary.accuracy, 3)) + ' & ' + str(round(summary.kappa, 3)) + ' & ' +
                       str(round(summary.f1_macro, 3)) + ' & ' + str(round(summary.f1_wake, 3)) + ' & ' +
                       str(round(summary.f1_nrem, 3)) + ' & ' + str(round(summary.f1_rem, 3)) + ' \\\\')
         print('\\end{tabular}')

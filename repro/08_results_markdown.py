@@ -212,9 +212,12 @@ def section_importance(adir):
     subsets = read_csv(a / "A_subsets.csv")
     if subsets is not None:
         out += ["**Качество на всех подмножествах признаков** (сон/бодрствование)",
-                df_table(subsets, ["model", "subset", "auc", "wake_correct@90", "kappa@90", "auc_subject_mean"],
-                         {"model": "модель", "subset": "признаки", "wake_correct@90": "wake найден @90% сна",
-                          "kappa@90": "κ @90%", "auc_subject_mean": "AUC, среднее по людям"})]
+                df_table(subsets, ["model", "subset", "accuracy@90", "wake_correct@90", "kappa@90", "auc",
+                                   "auc_subject_mean", "f1_wake@90", "f1_macro@90"],
+                         {"model": "модель", "subset": "признаки", "accuracy@90": "accuracy @90% сна",
+                          "wake_correct@90": "wake найден @90%", "kappa@90": "κ @90%",
+                          "auc_subject_mean": "AUC, среднее по людям", "f1_wake@90": "F1 wake @90%",
+                          "f1_macro@90": "macro F1 @90%"})]
     shap_auc = read_csv(a / "A_shapley_auc.csv")
     if shap_auc is not None:
         out += ["**Аддитивная важность: значение Шепли по AUC**",
@@ -233,10 +236,17 @@ def section_importance(adir):
         out += ["**Веса моделей**", md_table(rows, ["что"] + feats)]
     perm = read_csv(a / "C_permutation.csv")
     if perm is not None:
-        out += ["**Permutation importance** (падение AUC при перемешивании признака)",
-                df_table(perm, ["model", "feature", "mode", "auc_drop_mean", "auc_drop_std", "base_auc"],
+        out += ["**Permutation importance** (насколько падает качество, если перемешать признак; accuracy, κ и F1 — "
+                "при «сон найден» = 0.9)",
+                df_table(perm, ["model", "feature", "mode", "auc_drop_mean", "auc_drop_std", "accuracy_drop_mean",
+                                "kappa_drop_mean", "f1_wake_drop_mean", "f1_macro_drop_mean", "base_auc",
+                                "base_accuracy", "base_kappa", "base_f1_wake"],
                          {"model": "модель", "feature": "признак", "mode": "как перемешивали",
-                          "auc_drop_mean": "падение AUC", "auc_drop_std": "SD", "base_auc": "AUC без перемешивания"})]
+                          "auc_drop_mean": "падение AUC", "auc_drop_std": "SD", "accuracy_drop_mean": "падение accuracy",
+                          "kappa_drop_mean": "падение κ", "f1_wake_drop_mean": "падение F1 wake",
+                          "f1_macro_drop_mean": "падение macro F1", "base_auc": "AUC без перемешивания",
+                          "base_accuracy": "accuracy без перемешивания", "base_kappa": "κ без перемешивания",
+                          "base_f1_wake": "F1 wake без перемешивания"})]
     corr = read_csv(a / "features_spearman_corr.csv")
     if corr is not None:
         corr = corr.rename(columns={corr.columns[0]: "признак"})
@@ -276,8 +286,10 @@ def section_logreg(adir):
                     md_table([[c] + [v[f] for f in feats] for c, v in coefs.items()], ["класс"] + feats)]
     per = read_csv(a / "loso_per_subject.csv")
     if per is not None:
-        out += ["**AUC по людям** (модель, обученная без этого человека)",
-                df_table(per.sort_values("auc"), None, {"subject": "id", "n": "эпох", "wake_frac": "доля wake"})]
+        out += ["**Качество по людям** (модель, обученная без этого человека; порог общий — 90% сна найдено)",
+                df_table(per.sort_values("auc"), None,
+                         {"subject": "id", "n": "эпох", "wake_frac": "доля wake", "auc": "AUC", "wake_correct": "wake найден",
+                          "sleep_correct": "сон найден", "kappa": "κ", "f1_wake": "F1 wake", "f1_macro": "macro F1"})]
     return out
 
 
@@ -294,14 +306,32 @@ def section_improve(adir):
                           "wake_correct@93": "wake найден @93%", "kappa@93": "κ @93%"})]
     tc = read_csv(a / "three_class_comparison.csv")
     if tc is not None:
-        out += ["**Три класса**", df_table(tc, None, {"model": "модель"})]
+        out += ["**Три класса** (wake найден = 0.6: «NREM=REM» — доли найденных NREM и REM уравнены, «лучшая» — "
+                "точка лучшей accuracy; «argmax» — класс с наибольшей вероятностью)",
+                df_table(tc, ["model", "balanced_accuracy", "balanced_kappa", "balanced_f1_macro", "nrem_correct",
+                              "rem_correct", "best_accuracy", "best_kappa", "argmax_accuracy", "argmax_kappa",
+                              "argmax_f1_macro", "rem_auc", "wake_auc"],
+                         {"model": "модель", "balanced_accuracy": "accuracy (NREM=REM)", "balanced_kappa": "κ (NREM=REM)",
+                          "balanced_f1_macro": "macro F1 (NREM=REM)", "nrem_correct": "NREM найден",
+                          "rem_correct": "REM найден", "best_accuracy": "лучшая accuracy", "best_kappa": "κ (лучшая acc.)",
+                          "argmax_accuracy": "accuracy (argmax)", "argmax_kappa": "κ (argmax)",
+                          "argmax_f1_macro": "macro F1 (argmax)", "rem_auc": "AUC REM", "wake_auc": "AUC wake"})]
     abl = read_csv(a / "ablation_groups.csv")
     if abl is not None:
-        out += ["**Абляция групп признаков (LightGBM)**", df_table(abl, None, {"groups": "группы", "n_features": "признаков"})]
+        out += ["**Абляция групп признаков (LightGBM)**",
+                df_table(abl, ["groups", "n_features", "accuracy_90", "wake_correct_90", "kappa_90", "auc", "f1_wake_90",
+                               "f1_macro_90", "three_argmax_acc", "three_best_acc", "three_best_kappa",
+                               "three_argmax_f1_macro", "rem_auc"],
+                         {"groups": "группы", "n_features": "признаков", "accuracy_90": "accuracy @90%",
+                          "wake_correct_90": "wake найден @90%", "kappa_90": "κ @90%", "auc": "AUC",
+                          "f1_wake_90": "F1 wake @90%", "f1_macro_90": "macro F1 @90%",
+                          "three_argmax_acc": "3 кл.: accuracy (argmax)", "three_best_acc": "3 кл.: лучшая accuracy",
+                          "three_best_kappa": "3 кл.: κ", "three_argmax_f1_macro": "3 кл.: macro F1 (argmax)",
+                          "rem_auc": "AUC REM"})]
     shap = a / "shap_lgbm_ext_sw_mean_abs.csv"
     if shap.exists():
         s = pd.read_csv(shap)
-        s.columns = ["признак", "mean |SHAP|"]
+        s.columns = ["признак", "mean \\|SHAP\\|"]
         out += ["**Топ-15 признаков по SHAP** (LightGBM, расширенные, сон/бодрствование)", df_table(s, max_rows=15)]
     return out
 
@@ -312,12 +342,14 @@ def section_time(adir):
     if q is None:
         return out + ["_нет quality_by_hour.csv_"]
     out.append("Один порог на всю ночь (90% сна); recall — доля найденных эпох класса в этом часе.")
-    out.append(df_table(q, ["features", "model", "hour", "n", "subjects", "share_wake", "share_rem", "auc_sw",
-                            "wake_recall", "sleep_recall", "recall3_wake", "recall3_nrem", "recall3_rem"],
+    out.append(df_table(q, ["features", "model", "hour", "n", "subjects", "share_wake", "share_rem", "accuracy_sw",
+                            "auc_sw", "wake_recall", "sleep_recall", "kappa_sw", "f1_wake_sw", "accuracy3", "recall3_wake",
+                            "recall3_nrem", "recall3_rem", "f1_macro3"],
                         {"features": "признаки", "model": "модель", "hour": "час", "n": "эпох", "subjects": "людей",
-                         "share_wake": "доля wake", "share_rem": "доля REM", "auc_sw": "AUC", "wake_recall": "wake найден",
-                         "sleep_recall": "сон найден", "recall3_wake": "3 кл.: wake", "recall3_nrem": "3 кл.: NREM",
-                         "recall3_rem": "3 кл.: REM"}))
+                         "share_wake": "доля wake", "share_rem": "доля REM", "accuracy_sw": "accuracy", "auc_sw": "AUC",
+                         "wake_recall": "wake найден", "sleep_recall": "сон найден", "kappa_sw": "κ",
+                         "f1_wake_sw": "F1 wake", "accuracy3": "3 кл.: accuracy", "recall3_wake": "3 кл.: wake",
+                         "recall3_nrem": "3 кл.: NREM", "recall3_rem": "3 кл.: REM", "f1_macro3": "3 кл.: macro F1"}))
     return out
 
 
@@ -336,8 +368,18 @@ def section_f1(adir):
         out += ["**Три класса** (argmax; «всегда NREM» — пустышка)", df_table(tc, None, {"model": "модель", "kappa": "κ"})]
     ps = read_csv(a / "f1_per_subject.csv")
     if ps is not None:
-        g = ps.groupby("model", sort=False).f1_wake.describe()[["min", "25%", "50%", "75%", "max"]].reset_index()
-        out += ["**F1 бодрствования по людям**", df_table(g, None, {"model": "модель", "50%": "медиана"})]
+        frames = []
+        for col, name in [("accuracy", "accuracy"), ("f1_wake", "F1 wake")]:
+            if col in ps.columns:
+                g = ps.groupby("model", sort=False)[col].describe()[["min", "25%", "50%", "75%", "max"]].reset_index()
+                frames.append(g.assign(metric=name))
+        order = list(dict.fromkeys(ps.model))
+        g = pd.concat(frames)
+        g = g.assign(_o=g.model.map(order.index)).sort_values("_o", kind="stable")[
+            ["model", "metric", "min", "25%", "50%", "75%", "max"]]
+        g["model"] = g.model.where(~g.model.duplicated(), "")
+        out += ["**Accuracy и F1 бодрствования по людям**",
+                df_table(g, None, {"model": "модель", "metric": "метрика", "50%": "медиана"})]
     return out
 
 
@@ -446,12 +488,14 @@ def section_paper_metrics(adir):
         rows = []
         for _, r in d.iterrows():
             p = PAPER_SW.get((r.classifier, r.feature_set), (np.nan,) * 3)
-            rows.append([ru(r.classifier), r.feature_set, r.auc, p[0], r.wake_correct, p[1], r.kappa, p[2],
-                         r.f1_wake, r.f1_macro])
-        frame = pd.DataFrame(rows, columns=["модель", "признаки", "AUC", "AUC статья", "wake найден", "wake статья",
-                                            "κ", "κ статья", "F1 wake", "macro F1"])
+            rows.append([ru(r.classifier), r.feature_set, r.accuracy, r.auc, p[0], r.wake_correct, p[1], r.kappa, p[2],
+                         r.ap_wake, r.ppv_wake, r.f1_wake, r.f1_sleep, r.f1_macro])
+        frame = pd.DataFrame(rows, columns=["модель", "признаки", "accuracy", "AUC", "AUC статья", "wake найден",
+                                            "wake статья", "κ", "κ статья", "AP wake", "PPV wake", "F1 wake", "F1 сон",
+                                            "macro F1"])
         out += ["### Сводка: наши значения рядом со статьёй (сон найден = 0.90)",
-                md_table(bolded(frame, ["AUC", "wake найден", "κ", "F1 wake", "macro F1"], group="модель"), list(frame.columns))]
+                md_table(bolded(frame, ["accuracy", "AUC", "wake найден", "κ", "AP wake", "PPV wake", "F1 wake", "F1 сон",
+                                        "macro F1"], group="модель"), list(frame.columns))]
 
         out.append("### Таблицы 2–5. Сон/бодрствование: все пороги и все метрики")
         for clf in sw.classifier.unique():
@@ -468,25 +512,35 @@ def section_paper_metrics(adir):
                     md_table(bolded(frame.assign(_g=d.sensitivity_target.values), cols, group="_g", drop=["_g"]),
                              list(frame.columns))]
     if tc is not None:
+        for col in ["accuracy_balanced", "kappa_balanced"]:  # результаты старой версии 09: этих колонок нет
+            if col not in tc.columns:
+                tc[col] = np.nan
         rows = []
         for _, r in tc.iterrows():
             p = PAPER_T6.get((r.classifier, r.feature_set), (np.nan,) * 4)
-            rows.append([ru(r.classifier), r.feature_set, r.nrem_correct, p[0], r.rem_correct, p[1],
-                         r.best_accuracy, p[2], r.kappa, p[3], r.f1_macro_best, r.f1_macro_balanced, r.f1_rem_balanced])
-        frame = pd.DataFrame(rows, columns=["модель", "признаки", "NREM найден", "NREM статья", "REM найден",
-                                            "REM статья", "лучшая accuracy", "accuracy статья", "κ", "κ статья",
-                                            "macro F1 (лучшая acc.)", "macro F1 (NREM=REM)", "F1 REM (NREM=REM)"])
+            rows.append([ru(r.classifier), r.feature_set, r.wake_correct, r.nrem_correct, p[0], r.rem_correct, p[1],
+                         r.accuracy_balanced, r.kappa_balanced, r.f1_macro_balanced, r.f1_rem_balanced,
+                         r.best_accuracy, p[2], r.kappa, p[3], r.f1_macro_best])
+        frame = pd.DataFrame(rows, columns=["модель", "признаки", "wake найден", "NREM найден", "NREM статья",
+                                            "REM найден", "REM статья", "accuracy (NREM=REM)", "κ (NREM=REM)",
+                                            "macro F1 (NREM=REM)", "F1 REM (NREM=REM)", "лучшая accuracy",
+                                            "accuracy статья", "κ (лучшая acc.)", "κ статья", "macro F1 (лучшая acc.)"])
         out += ["### Таблица 6. Wake / NREM / REM (wake найден = 0.6)",
-                md_table(bolded(frame, ["NREM найден", "REM найден", "лучшая accuracy", "κ", "macro F1 (лучшая acc.)",
-                                        "macro F1 (NREM=REM)", "F1 REM (NREM=REM)"], group="модель"), list(frame.columns)),
-                "«NREM=REM» — порог, при котором доли найденных NREM и REM уравнены (как сплошные линии на рис. 4); "
-                "«лучшая accuracy» — точка, где статья берёт κ. Именно там видно, как accuracy ≈ 0.70 достигается почти "
-                "без REM."]
-        fixed = tc[["classifier", "feature_set", "f1_wake_fixed", "f1_nrem_fixed", "f1_rem_fixed", "f1_macro_fixed"]].copy()
+                md_table(bolded(frame, ["NREM найден", "REM найден", "accuracy (NREM=REM)", "κ (NREM=REM)",
+                                        "macro F1 (NREM=REM)", "F1 REM (NREM=REM)", "лучшая accuracy", "κ (лучшая acc.)",
+                                        "macro F1 (лучшая acc.)"], group="модель"), list(frame.columns)),
+                "Две рабочие точки на одной и той же модели. «NREM=REM» — порог, при котором доли найденных NREM и REM "
+                "уравнены (как сплошные линии на рис. 4). «Лучшая accuracy» — точка, где статья берёт accuracy и κ; "
+                "именно там видно, как accuracy ≈ 0.70 достигается почти без REM."]
+        fixed_cols = ["accuracy", "kappa", "wake_correct", "nrem_correct", "rem_correct", "f1_wake", "f1_nrem", "f1_rem",
+                      "f1_macro"]
+        names = ["accuracy", "κ", "wake найден", "NREM найден", "REM найден", "F1 wake", "F1 NREM", "F1 REM", "macro F1"]
+        present = [(f"{c}_fixed", n) for c, n in zip(fixed_cols, names) if f"{c}_fixed" in tc.columns]
+        fixed = tc[["classifier", "feature_set"] + [c for c, _ in present]].copy()
         fixed["classifier"] = fixed.classifier.map(ru)
-        fixed.columns = ["модель", "признаки", "F1 wake", "F1 NREM", "F1 REM", "macro F1"]
-        out += ["**F1 по стадиям при фиксированных порогах статьи** (θW = 0.3, θREM = 0.35, как для рис. 5)",
-                md_table(bolded(fixed, ["F1 wake", "F1 NREM", "F1 REM", "macro F1"], group="модель"), list(fixed.columns))]
+        fixed.columns = ["модель", "признаки"] + [n for _, n in present]
+        out += ["**Классификация при фиксированных порогах статьи** (θW = 0.3, θREM = 0.35, как для рис. 5)",
+                md_table(bolded(fixed, [n for _, n in present], group="модель"), list(fixed.columns))]
 
     ba = read_csv(a / "bland_altman_stats.csv")
     if ba is not None:
@@ -510,6 +564,16 @@ def section_paper_metrics(adir):
                 "Сдвиг = среднее (PSG − модель) по людям: положительный — модель **недооценивает** показатель. "
                 "Границы согласия = сдвиг ± 1.96 SD: чем уже, тем надёжнее оценка для отдельного человека.",
                 md_table(rows, header)]
+        if tc is not None and "accuracy_fixed" in tc.columns:
+            d = tc[tc.feature_set == "Motion, HR, Clock"]
+            cols = ["accuracy_fixed", "kappa_fixed", "wake_correct_fixed", "nrem_correct_fixed", "rem_correct_fixed",
+                    "f1_wake_fixed", "f1_rem_fixed", "f1_macro_fixed"]
+            frame = d[["classifier"] + cols].assign(classifier=d.classifier.map(ru))
+            frame.columns = ["модель", "accuracy", "κ", "wake найден", "NREM найден", "REM найден", "F1 wake", "F1 REM",
+                             "macro F1"]
+            out += ["**Классификация эпох при тех же порогах** (Motion, HR, Clock; из этих предсказаний и считаются "
+                    "показатели сна выше)",
+                    md_table(bolded(frame, list(frame.columns[1:])), list(frame.columns))]
         main = ba[ba.classifier == ps_model]
         frame = main[["metric", "feature_set", "bias", "sd", "границы"]].rename(
             columns={"metric": "показатель", "feature_set": "признаки", "bias": "сдвиг", "sd": "SD"})
@@ -519,13 +583,15 @@ def section_paper_metrics(adir):
     p6 = read_csv(a / "per_subject_theta.csv")
     p7 = read_csv(a / "per_subject_tpr.csv")
     labels = {"accuracy": "accuracy", "wake_correct": "wake найден", "sleep_correct": "сон найден", "kappa": "κ",
-              "f1_wake": "F1 wake"}
+              "auc": "AUC", "f1_wake": "F1 wake", "f1_sleep": "F1 сон", "f1_macro": "macro F1"}
     if p6 is not None:
         if "classifier" not in p6.columns:
             p6["classifier"] = ps_model
         rows = []
         for m, d in p6.groupby("classifier", sort=False):
             for col, name in labels.items():
+                if col not in d.columns:  # результаты старой версии 09: части метрик нет
+                    continue
                 v = d[col].dropna()
                 rows.append([ru(m) if col == "accuracy" else "", name, v.min(), v.quantile(.25), v.median(),
                              v.quantile(.75), v.max()])
@@ -534,24 +600,43 @@ def section_paper_metrics(adir):
     if p7 is not None:
         if "classifier" not in p7.columns:
             p7["classifier"] = ps_model
-        g = p7.groupby(["classifier", "tpr"], sort=False)[["accuracy", "wake_correct"]].median().reset_index()
+        cols = [c for c in ["accuracy", "wake_correct", "kappa", "f1_wake", "f1_macro"] if c in p7.columns]
+        g = p7.groupby(["classifier", "tpr"], sort=False)[cols].median().reset_index()
         g["classifier"] = g.classifier.map(ru).where(~g.classifier.duplicated(), "")
-        g.columns = ["модель", "сон найден (порог под человека)", "accuracy, медиана", "wake найден, медиана"]
+        g.columns = ["модель", "сон найден (порог под человека)"] + [f"{labels[c]}, медиана" for c in cols]
         out += ["### Рисунок 7. Порог под каждого человека", df_table(g)]
     return out
 
 
-SHAPLEY_METRICS_RU = {"auc": "AUC", "ap_wake": "AP wake", "kappa": "κ (90% сна)", "f1_wake": "F1 wake (90% сна)"}
+SHAPLEY_METRICS_RU = {"accuracy": "accuracy", "auc": "AUC", "ap_wake": "AP wake", "kappa": "κ", "f1_wake": "F1 wake",
+                      "f1_macro": "macro F1"}
+
+
+def shapley_guide():
+    """Текст «Как читать графики Шепли и SHAP» (docs/SHAPLEY_RU.md или repro/SHAPLEY_RU.md) — без картинок,
+    заголовки на уровень ниже, чтобы встать внутрь раздела отчёта."""
+    for path in (ROOT / "docs" / "SHAPLEY_RU.md", ROOT / "repro" / "SHAPLEY_RU.md"):
+        if path.exists():
+            lines = path.read_text(encoding="utf-8").splitlines()
+            body = [("#" + line if line.startswith("#") else line) for line in lines[1:] if not line.startswith("![")]
+            rel = path.relative_to(ROOT).as_posix()
+            return [f"### Как читать графики Шепли и SHAP\n\n_то же самое — в `{rel}`_\n\n" + "\n".join(body).strip()]
+    return []
 
 
 def section_shapley(adir):
+    out = section_shapley_tables(adir)
+    return out + shapley_guide()
+
+
+def section_shapley_tables(adir):
     a = adir / "paper_metrics"
     out = ["## Важность признаков по Шепли: все модели",
            "Два независимых взгляда, оба — leave-one-subject-out, для тех же моделей, что и в метриках статьи "
            "(`repro/09_paper_metrics.py`):",
            "* **Значения Шепли по качеству.** Каждая модель переобучена на всех 7 подмножествах признаков "
-           "{motion, hr, clock}. «Игра» v(S) = метрика модели на признаках S − метрика случайной модели "
-           "(AUC 0.5; AP = доля wake; κ 0; F1 wake при 90% сна = 2·π·0.1/(π+0.1), π — доля wake). Значение Шепли — "
+           "{motion, hr, clock}. «Игра» v(S) = метрика модели на признаках S − метрика случайной модели, которая "
+           "говорит «сон» в 90% эпох наугад (accuracy, AUC 0.5, AP = доля wake, κ 0, F1 wake, macro F1). Значение Шепли — "
            "средний прирост метрики от признака по всем порядкам добавления; сумма по признакам = прирост полной "
            "модели. Рядом: **drop-column** — сколько теряем, убрав признак из полной модели, и **один** — качество "
            "признака в одиночку (тоже над случайной моделью).",
@@ -566,12 +651,23 @@ def section_shapley(adir):
     if subsets is not None:
         order = ["Motion only", "HR only", "Clock only", "Motion, HR", "Motion, Clock", "HR, Clock",
                  "Motion, HR, Clock"]
-        pivot = subsets.pivot(index="feature_set", columns="classifier", values="auc")
-        pivot = pivot.loc[[o for o in order if o in pivot.index], [m for m in ALL_MODELS if m in pivot.columns]]
-        frame = pivot.reset_index().rename(columns={"feature_set": "признаки", **{m: ru(m) for m in pivot.columns}})
-        out += ["### AUC на всех подмножествах признаков (сон/бодрствование)",
-                md_table(bolded(frame, [ru(m) for m in pivot.columns]), list(frame.columns))]
+        names = {"accuracy": "accuracy", "sleep_correct": "сон найден", "wake_correct": "wake найден", "kappa": "κ",
+                 "auc": "AUC", "ap_wake": "AP wake", "ppv_wake": "PPV wake", "f1_wake": "F1 wake", "f1_sleep": "F1 сон",
+                 "f1_macro": "macro F1"}
+        cols = [c for c in names if c in subsets.columns]
+        subsets = subsets.assign(_order=subsets.feature_set.map(order.index),
+                                 _model=subsets.classifier.map(lambda m: ALL_MODELS.index(m) if m in ALL_MODELS else 99))
+        subsets = subsets.sort_values(["_model", "_order"])
+        frame = subsets[["classifier", "feature_set"] + cols].copy()
+        frame["classifier"] = frame.classifier.map(ru).where(~frame.classifier.duplicated(), "")
+        frame.columns = ["модель", "признаки"] + [names[c] for c in cols]
+        out += ["### Качество на всех подмножествах признаков (сон/бодрствование, сон найден = 0.90)",
+                "Из этих чисел и складываются значения Шепли ниже. **Жирным** — лучшее подмножество у модели.",
+                md_table(bolded(frame.assign(_g=subsets.classifier.values),
+                                [names[c] for c in cols if c != "sleep_correct"], group="_g", drop=["_g"]),
+                         list(frame.columns))]
     if values is not None:
+        metrics = [m for m in ["accuracy", "auc", "ap_wake", "kappa", "f1_wake", "f1_macro"] if m in set(values.metric)]
         rows, groups = [], []
         for clf in [m for m in ALL_MODELS if m in set(values.classifier)]:
             d = values[values.classifier == clf]
@@ -579,28 +675,47 @@ def section_shapley(adir):
                 auc = d[(d.metric == "auc") & (d.feature == f)].iloc[0]
                 row = [ru(clf) if f == "motion" else "", f, auc.shapley, f"{100 * auc.share:.0f}%", auc.drop_column,
                        auc.alone]
-                row += [d[(d.metric == m) & (d.feature == f)].shapley.iloc[0] for m in ["ap_wake", "kappa", "f1_wake"]]
+                row += [d[(d.metric == m) & (d.feature == f)].shapley.iloc[0] for m in metrics if m != "auc"]
                 rows.append(row)
                 groups.append(clf)
-        header = ["модель", "признак", "Шепли AUC", "доля", "drop-column AUC", "один AUC", "Шепли AP wake",
-                  "Шепли κ", "Шепли F1 wake"]
+        header = ["модель", "признак", "Шепли AUC", "доля AUC", "drop-column AUC", "один AUC"] + \
+                 [f"Шепли {SHAPLEY_METRICS_RU[m]}" for m in metrics if m != "auc"]
+        base = values.drop_duplicates("metric").set_index("metric").baseline
         out += ["### Значения Шепли по метрикам",
-                "Все числа — прирост над случайной моделью (для AUC: над 0.5). **Жирным** — самый важный признак "
-                "у модели.",
-                md_table(bolded(pd.DataFrame(rows, columns=header).assign(_g=groups), ["Шепли AUC", "drop-column AUC", "один AUC", "Шепли AP wake", "Шепли κ", "Шепли F1 wake"],
-                    group="_g", drop=["_g"]), header)]
+                "Все числа — прирост над случайной моделью, которая говорит «сон» в 90% эпох наугад (её качество: " +
+                ", ".join(f"{SHAPLEY_METRICS_RU[m]} {base[m]:.3f}" for m in metrics) +
+                "). Сумма значений Шепли трёх признаков = качество полной модели − качество случайной. **Жирным** — "
+                "самый важный признак у модели.",
+                md_table(bolded(pd.DataFrame(rows, columns=header).assign(_g=groups),
+                                [h for h in header if h not in ("модель", "признак", "доля AUC")],
+                                group="_g", drop=["_g"]), header)]
     if summary is not None:
         frame = summary.copy()
         frame["direction"] = frame.spearman_value_vs_shap.map(
             lambda r: "больше → сон" if r > 0.2 else ("больше → wake" if r < -0.2 else "нелинейно"))
         frame["share"] = (100 * frame.share).map(lambda v: f"{v:.0f}%")
+        # качество объясняемой модели (Motion, HR, Clock, сон найден = 0.9) — в первой строке модели
+        sw = read_csv(a / "sleep_wake_all_models.csv")
+        quality = ["accuracy", "kappa", "auc", "f1_wake", "f1_macro"]
+        if sw is not None:
+            q = sw[(sw.feature_set == "Motion, HR, Clock") & (sw.sensitivity_target.round(2) == 0.9)]
+            q = q.set_index("classifier")[quality]
+            for c in quality:
+                frame[c] = [q.loc[m, c] if m in q.index and first else np.nan
+                            for m, first in zip(frame.classifier, ~frame.classifier.duplicated())]
+        else:
+            for c in quality:
+                frame[c] = np.nan
         frame["classifier"] = frame.classifier.map(ru).where(~frame.classifier.duplicated(), "")
-        frame = frame[["classifier", "feature", "mean_abs", "share", "mean", "spearman_value_vs_shap", "direction"]]
+        frame = frame[["classifier", "feature", "mean_abs", "share", "mean", "spearman_value_vs_shap", "direction"]
+                      + quality]
         frame.columns = ["модель", "признак", "mean \\|SHAP\\|", "доля", "средний SHAP", "Спирмен (значение, SHAP)",
-                         "направление"]
+                         "направление", "accuracy модели", "κ модели", "AUC модели", "F1 wake модели",
+                         "macro F1 модели"]
         out += ["### SHAP: средний сдвиг P(сон) от признака (Motion, HR, Clock)",
                 "«Направление» — знак связи между значением признака и его SHAP: «больше → сон» значит, что чем "
-                "больше признак, тем выше P(сон).",
+                "больше признак, тем выше P(сон). Справа — качество объясняемой модели (сон найден = 0.90), чтобы "
+                "было видно, насколько ей стоит доверять.",
                 df_table(frame)]
     return out
 
@@ -721,7 +836,8 @@ def main():
         section[0] = f"## {len(titles)}. {title}"
     parts = ["# Результаты проекта: предсказание стадий сна по Apple Watch",
              "Сгенерировано `repro/08_results_markdown.py` из готовых результатов (ничего не пересчитывается). "
-             "Подробнее о модели и метриках — `docs/LOGREG_RU.md` и `docs/F1_RU.md`.",
+             "Подробнее о модели и метриках — `docs/LOGREG_RU.md` и `docs/F1_RU.md`, о графиках Шепли и SHAP — "
+             "`docs/SHAPLEY_RU.md` (он же — в конце раздела о важности по Шепли).",
              "**Содержание:** " + " · ".join(f"{i}. {t}" for i, t in enumerate(titles, 1)),
              "**Метрики, которые встречаются ниже**",
              md_table(GLOSSARY, ["метрика", "что значит"])]

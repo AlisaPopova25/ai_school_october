@@ -110,8 +110,10 @@ def evaluate(preds, yd):
     r = sl.three_class_at_wake_fpr(y3, p, 0.4)
     pred = p.argmax(1)
     return dict(nrem_correct=r["nrem_correct"], rem_correct=r["rem_correct"], best_accuracy=r["best_accuracy"],
-                best_kappa=r["best_kappa"], balanced_kappa=r["balanced_kappa"],
+                best_kappa=r["best_kappa"], balanced_accuracy=r["balanced_accuracy"],
+                balanced_kappa=r["balanced_kappa"], balanced_f1_macro=r["balanced_f1_macro"],
                 argmax_accuracy=np.mean(pred == y3), argmax_kappa=cohen_kappa_score(y3, pred),
+                argmax_f1_macro=sl.three_class_f1(y3, pred)["f1_macro"],
                 rem_auc=roc_auc_score(y3 == 2, p[:, 2]), wake_auc=roc_auc_score(y3 == 0, p[:, 0]))
 
 
@@ -169,8 +171,10 @@ def main():
         msw = evaluate(run(Xd, yd, cols, "lgbm", "sw"), yd)
         m3 = evaluate(run(Xd, yd, cols, "lgbm", "3"), yd)
         abl.append(dict(groups="+".join(combo), n_features=len(cols), auc=msw["auc"],
-                        wake_correct_90=msw["wake_correct@90"], kappa_90=msw["kappa@90"],
+                        accuracy_90=msw["accuracy@90"], wake_correct_90=msw["wake_correct@90"],
+                        kappa_90=msw["kappa@90"], f1_wake_90=msw["f1_wake@90"], f1_macro_90=msw["f1_macro@90"],
                         three_best_kappa=m3["best_kappa"], three_best_acc=m3["best_accuracy"],
+                        three_argmax_acc=m3["argmax_accuracy"], three_argmax_f1_macro=m3["argmax_f1_macro"],
                         rem_auc=m3["rem_auc"]))
         print("  ablation", abl[-1], flush=True)
     abl = pd.DataFrame(abl)

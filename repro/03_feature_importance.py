@@ -203,11 +203,17 @@ def permutation_importance(data, kind, n_repeats=10):
     def predict(Xs_):
         return np.concatenate([models[s].predict_proba(Xs_[s])[:, 1] for s in sl.SUBJECTS])
 
-    base = roc_auc_score(y, predict(Xs))
+    def quality(p):  # AUC и метрики классификации при «сон найден» = 0.9
+        m = sl.sw_summary(y, p)
+        return dict(auc=m["auc"], accuracy=m["accuracy@90"], kappa=m["kappa@90"], f1_wake=m["f1_wake@90"],
+                    f1_macro=m["f1_macro@90"])
+
+    base_quality = quality(predict(Xs))
+    base = base_quality["auc"]
     rows = []
     for j, f in enumerate(FEATURES):
         for mode in ["global", "within_subject"]:
-            drops = []
+            drops, metric_drops = [], []
             for _ in range(n_repeats):
                 Xp = {s: Xs[s].copy() for s in sl.SUBJECTS}
                 if mode == "within_subject":  # перемешиваем внутри ночи: разрушаем ТОЛЬКО временную информацию
@@ -220,9 +226,15 @@ def permutation_importance(data, kind, n_repeats=10):
                         n = len(Xp[s])
                         Xp[s][:, j] = allv[i:i + n]
                         i += n
-                drops.append(base - roc_auc_score(y, predict(Xp)))
+                permuted = quality(predict(Xp))
+                drops.append(base - permuted["auc"])
+                metric_drops.append({k: base_quality[k] - permuted[k] for k in ("accuracy", "kappa", "f1_wake",
+                                                                                 "f1_macro")})
             rows.append(dict(model=kind, feature=f, mode=mode, auc_drop_mean=np.mean(drops),
-                             auc_drop_std=np.std(drops), base_auc=base))
+                             auc_drop_std=np.std(drops), base_auc=base,
+                             **{f"{k}_drop_mean": np.mean([d[k] for d in metric_drops]) for k in metric_drops[0]},
+                             base_accuracy=base_quality["accuracy"], base_kappa=base_quality["kappa"],
+                             base_f1_wake=base_quality["f1_wake"]))
     return rows, models
 
 

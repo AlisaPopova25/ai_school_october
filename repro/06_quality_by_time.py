@@ -18,7 +18,7 @@ import numpy as np
 import pandas as pd
 from joblib import Parallel, delayed
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import cohen_kappa_score, roc_auc_score
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
@@ -74,7 +74,11 @@ def main():
                            auc_sw=roc_auc_score(y_sw[m], p_sw[m]) if 0 < y_sw[m].mean() < 1 else np.nan,
                            wake_recall=np.mean(pred_sw[m][y_sw[m] == 0] == 0) if np.any(y_sw[m] == 0) else np.nan,
                            sleep_recall=np.mean(pred_sw[m][y_sw[m] == 1] == 1),
-                           accuracy_sw=np.mean(pred_sw[m] == y_sw[m]))
+                           accuracy_sw=np.mean(pred_sw[m] == y_sw[m]),
+                           kappa_sw=cohen_kappa_score(y_sw[m], pred_sw[m]) if 0 < y_sw[m].mean() < 1 else np.nan,
+                           f1_wake_sw=sl.sw_f1(y_sw[m], pred_sw[m])["f1_wake"] if np.any(y_sw[m] == 0) else np.nan,
+                           accuracy3=np.mean(pred3[m] == y3[m]),
+                           f1_macro3=sl.three_class_f1(y3[m], pred3[m])["f1_macro"])
                 for c, name in enumerate(["wake", "nrem", "rem"]):
                     row[f"recall3_{name}"] = np.mean(pred3[m][y3[m] == c] == c) if np.any(y3[m] == c) else np.nan
                 rows.append(row)

@@ -24,7 +24,7 @@ import pandas as pd
 from joblib import Parallel, delayed
 from sklearn.calibration import calibration_curve
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import cohen_kappa_score, roc_auc_score
 from sklearn.model_selection import GridSearchCV
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import SplineTransformer, StandardScaler, FunctionTransformer
@@ -115,11 +115,21 @@ def main():
     p_nowt = loso(data, lambda: LiblinearLogisticRegression(solver="liblinear", **params))[:, 1]
     report["loso"] = sl.sw_summary(y, p_loso)
     per_subj, i = [], 0
+    threshold = np.quantile(p_loso[y == 1], 0.10)  # общий порог: сон найден = 0.90 по всем эпохам
     for s in sl.SUBJECTS:
         n = len(subj_idx[s])
         ys = y[i:i + n]
+        pred = (p_loso[i:i + n] >= threshold).astype(int)
+        has_wake = 0 < ys.mean() < 1
+        f1 = sl.sw_f1(ys, pred)
         per_subj.append(dict(subject=s, n=n, wake_frac=1 - ys.mean(),
-                             auc=roc_auc_score(ys, p_loso[i:i + n]) if 0 < ys.mean() < 1 else np.nan))
+                             auc=roc_auc_score(ys, p_loso[i:i + n]) if has_wake else np.nan,
+                             accuracy=np.mean(pred == ys),
+                             wake_correct=np.mean(pred[ys == 0] == 0) if has_wake else np.nan,
+                             sleep_correct=np.mean(pred[ys == 1] == 1),
+                             kappa=cohen_kappa_score(ys, pred) if has_wake else np.nan,
+                             f1_wake=f1["f1_wake"] if has_wake else np.nan,
+                             f1_macro=f1["f1_macro"] if has_wake else np.nan))
         i += n
     per_subj = pd.DataFrame(per_subj)
     per_subj.to_csv(OUT / "loso_per_subject.csv", index=False, float_format="%.4f")
@@ -213,7 +223,8 @@ def main():
     }
     lin = pd.DataFrame({k: sl.sw_summary(y, v) for k, v in variants.items()}).T
     lin.to_csv(OUT / "linearity_variants.csv", float_format="%.4f")
-    report["linearity_variants"] = lin[["auc", "wake_correct@90", "kappa@90", "wake_correct@93"]].round(4).to_dict(
+    report["linearity_variants"] = lin[["auc", "accuracy@90", "wake_correct@90", "kappa@90", "f1_wake@90",
+                                        "f1_macro@90", "accuracy@93", "wake_correct@93", "kappa@93"]].round(4).to_dict(
         orient="index")
 
     # форма зависимости log-odds от каждого признака (по биннингу) — видно, где линейность нарушена
