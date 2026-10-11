@@ -10,6 +10,7 @@
 
 Результаты: outputs/repro/improve/
 """
+import os
 import warnings
 
 import lightgbm as lgb
@@ -92,7 +93,7 @@ def run(Xd, yd, cols, kind, target, smooth=False):
             p = hmm_smooth(p, np.bincount(y, minlength=k) / len(y), T, start)
         return test, p
 
-    res = dict(Parallel(n_jobs=-1)(delayed(fold)(s) for s in sl.SUBJECTS))
+    res = dict(Parallel(n_jobs=int(os.environ.get("SLEEP_N_JOBS", -1)))(delayed(fold)(s) for s in sl.SUBJECTS))
     return {s: res[s] for s in sl.SUBJECTS}
 
 

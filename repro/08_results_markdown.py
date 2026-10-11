@@ -340,16 +340,225 @@ def section_f1(adir):
     return out
 
 
-def section_figures(fig_dirs, out_path):
-    out = ["## 8. Картинки"]
+# --------------------------------------------------------------------------- все метрики статьи (09_paper_metrics.py)
+GLOSSARY = [
+    ("Accuracy", "доля всех эпох, распознанных верно; при 92% сна «всегда сон» уже даёт 0.92"),
+    ("Сон найден (sensitivity)", "доля эпох сна, названных сном; в статье порог подбирают так, чтобы она была 0.80–0.95"),
+    ("Wake найден (specificity)", "доля эпох бодрствования, названных бодрствованием — главное слабое место моделей"),
+    ("κ (каппа Коэна)", "согласие с PSG сверх случайного: 0 — как монетка, 1 — полное"),
+    ("AUC", "площадь под ROC-кривой: качество разделения сна и бодрствования сразу по всем порогам"),
+    ("AP", "площадь под precision–recall кривой для wake (рис. 3): честнее AUC при редком wake"),
+    ("PPV wake / PPV сон", "доля верных среди эпох, названных wake / сном (precision); в коде статьи есть, в таблицах нет"),
+    ("F1", "гармоническое среднее precision и recall класса; macro F1 — среднее по классам"),
+    ("Сдвиг и границы согласия", "Bland–Altman: среднее (PSG − модель) и ±1.96 SD этой разности по людям"),
+]
+PAPER_SW = {  # Таблицы 2–5 статьи при «сон найден» = 0.9: (AUC, wake найден, κ)
+    ("Logistic Regression", "Motion only"): (0.819, 0.549, 0.343), ("Logistic Regression", "HR only"): (0.743, 0.326, 0.187),
+    ("Logistic Regression", "Motion, HR"): (0.830, 0.546, 0.341), ("Logistic Regression", "Motion, HR, Clock"): (0.854, 0.556, 0.347),
+    ("k-Nearest Neighbors", "Motion only"): (0.803, 0.483, 0.300), ("k-Nearest Neighbors", "HR only"): (0.682, 0.237, 0.117),
+    ("k-Nearest Neighbors", "Motion, HR"): (0.810, 0.496, 0.308), ("k-Nearest Neighbors", "Motion, HR, Clock"): (0.868, 0.627, 0.391),
+    ("Random Forest", "Motion only"): (0.810, 0.530, 0.329), ("Random Forest", "HR only"): (0.708, 0.282, 0.152),
+    ("Random Forest", "Motion, HR"): (0.816, 0.519, 0.322), ("Random Forest", "Motion, HR, Clock"): (0.871, 0.653, 0.405),
+    ("Neural Net", "Motion only"): (0.815, 0.542, 0.342), ("Neural Net", "HR only"): (0.737, 0.323, 0.187),
+    ("Neural Net", "Motion, HR"): (0.828, 0.528, 0.333), ("Neural Net", "Motion, HR, Clock"): (0.878, 0.675, 0.424),
+}
+PAPER_T6 = {  # Таблица 6 статьи: (NREM найден, REM найден, лучшая accuracy, κ) при wake найден = 0.6
+    ("Logistic Regression", "Motion only"): (0.506, 0.332, 0.710, 0.085), ("Logistic Regression", "HR only"): (0.452, 0.453, 0.698, 0.033),
+    ("Logistic Regression", "Motion, HR"): (0.625, 0.625, 0.701, 0.161), ("Logistic Regression", "Motion, HR, Clock"): (0.623, 0.623, 0.699, 0.130),
+    ("k-Nearest Neighbors", "Motion only"): (0.294, 0.532, 0.698, 0.072), ("k-Nearest Neighbors", "HR only"): (0.402, 0.402, 0.671, 0.108),
+    ("k-Nearest Neighbors", "Motion, HR"): (0.607, 0.605, 0.711, 0.227), ("k-Nearest Neighbors", "Motion, HR, Clock"): (0.648, 0.647, 0.721, 0.243),
+    ("Random Forest", "Motion only"): (0.397, 0.441, 0.702, 0.075), ("Random Forest", "HR only"): (0.434, 0.434, 0.676, 0.165),
+    ("Random Forest", "Motion, HR"): (0.615, 0.615, 0.695, 0.293), ("Random Forest", "Motion, HR, Clock"): (0.638, 0.638, 0.686, 0.302),
+    ("Neural Net", "Motion only"): (0.394, 0.498, 0.713, 0.084), ("Neural Net", "HR only"): (0.454, 0.454, 0.698, 0.040),
+    ("Neural Net", "Motion, HR"): (0.622, 0.622, 0.723, 0.256), ("Neural Net", "Motion, HR, Clock"): (0.651, 0.650, 0.723, 0.277),
+}
+CLASSIFIERS_RU = {"Logistic Regression": "Логистическая регрессия", "k-Nearest Neighbors": "k ближайших соседей",
+                  "Random Forest": "Случайный лес", "Neural Net": "Нейросеть (MLP)"}
+
+
+def bolded(df, cols, group=None, lower_is_better=(), drop=()):
+    """Строки таблицы с выделенным жирным лучшим значением в каждой колонке (внутри группы, если задана).
+    Колонки из drop участвуют в группировке, но в таблицу не попадают."""
+    df = df.reset_index(drop=True)
+    best = {}
+    groups = df.groupby(group).groups.values() if group else [df.index]
+    for idx in groups:
+        for c in cols:
+            vals = pd.to_numeric(df.loc[idx, c], errors="coerce")
+            if vals.notna().any():
+                target = vals.min() if c in lower_is_better else vals.max()
+                for i in vals.index[vals == target]:
+                    best[(i, c)] = True
+    rows = []
+    for i, row in df.iterrows():
+        rows.append([f"**{fmt(v)}**" if best.get((i, c)) and fmt(v) else fmt(v)
+                     for c, v in row.items() if c not in drop])
+    return rows
+
+
+def section_paper_metrics(adir):
+    a = adir / "paper_metrics"
+    out = ["## Все метрики статьи для четырёх моделей",
+           "Протокол: **leave-one-subject-out** (31 фолд): каждый человек предсказывается моделью, обученной на "
+           "остальных 30. Модели и гиперпараметры — из кода статьи, фиксированные значения из её сеток "
+           "(`repro/09_paper_metrics.py`). В статье — Monte Carlo 70/30 (50 и 20 разбиений) с подбором "
+           "гиперпараметров на каждом, поэтому числа близки, но не обязаны совпадать до третьего знака. "
+           "**Жирным** — лучшее значение среди наборов признаков. Таблицы 7–9 и рис. 8–9 (MESA) не воспроизводимы: "
+           "данные MESA выдаются только по заявке NSRR."]
+    t1 = read_csv(a / "table1_summary.csv")
+    if t1 is None:
+        return out + ["_не посчитано: запустите `python repro/run_all.py` (или `python repro/09_paper_metrics.py`)_"]
+    read_text = lambda name, default: (a / name).read_text(encoding="utf-8").strip() if (a / name).exists() else default
+    models_done = read_text("models_included.txt", "").splitlines()
+    ps_model = read_text("per_subject_model.txt", "Neural Net")
+    ps_model_ru = CLASSIFIERS_RU.get(ps_model, ps_model).lower()
+    if models_done and "Neural Net" not in models_done:
+        out.append("> **Нейросеть ещё не обучена** — в таблицах только: " +
+                   ", ".join(CLASSIFIERS_RU[m] for m in models_done) +
+                   f". Рисунки 5–7 (в статье — по нейросети) временно построены по модели «{CLASSIFIERS_RU[ps_model]}»; "
+                   "фиксированные пороги статьи θW = 0.3 и θREM = 0.35 подобраны под нейросеть без весов классов, "
+                   "поэтому для этой модели сдвиги в Bland–Altman завышены. Дообучить: "
+                   "`python repro/09_paper_metrics.py --models \"Neural Net\"` — остальное возьмётся из сохранённого.")
+    source = (a / "table1_source.txt").read_text(encoding="utf-8") if (a / "table1_source.txt").exists() else ""
+    out += [f"### Таблица 1. Сон по PSG (31 человек; источник — {source})",
+            df_table(t1, None, {"показатель": "показатель"}),
+            "TIB, TST и время в стадиях у нас меньше, а разброс больше: в открытых данных у 5 человек разметка ночи "
+            "обрезана до 3.5–4.7 ч (у часов села батарея), а статья считала Таблицу 1 по полной PSG. Показатели, "
+            "не зависящие от длины ночи (SE, SOL, WASO), совпадают. Возраста в открытых данных нет "
+            "(в статье 29.4 ± 8.5 года, 21 женщина)."]
+
+    sw = read_csv(a / "sleep_wake_all_models.csv")
+    tc = read_csv(a / "three_class_all_models.csv")
+    if sw is not None:
+        d = sw[sw.sensitivity_target.round(2) == 0.9]
+        rows = []
+        for _, r in d.iterrows():
+            p = PAPER_SW.get((r.classifier, r.feature_set), (np.nan,) * 3)
+            rows.append([CLASSIFIERS_RU[r.classifier], r.feature_set, r.auc, p[0], r.wake_correct, p[1], r.kappa, p[2],
+                         r.f1_wake, r.f1_macro])
+        frame = pd.DataFrame(rows, columns=["модель", "признаки", "AUC", "AUC статья", "wake найден", "wake статья",
+                                            "κ", "κ статья", "F1 wake", "macro F1"])
+        out += ["### Сводка: наши значения рядом со статьёй (сон найден = 0.90)",
+                md_table(bolded(frame, ["AUC", "wake найден", "κ", "F1 wake", "macro F1"], group="модель"), list(frame.columns))]
+
+        out.append("### Таблицы 2–5. Сон/бодрствование: все пороги и все метрики")
+        for clf in sw.classifier.unique():
+            d = sw[sw.classifier == clf]
+            frame = pd.DataFrame({
+                "признаки": d.feature_set, "сон найден": d.sensitivity_target, "accuracy": d.accuracy,
+                "wake найден": d.wake_correct, "κ": d.kappa, "AUC": d.auc, "AP wake": d.ap_wake,
+                "PPV wake": d.ppv_wake, "PPV сон": d.ppv_sleep, "F1 wake": d.f1_wake, "F1 сон": d.f1_sleep,
+                "macro F1": d.f1_macro})
+            frame.loc[frame.duplicated(["признаки"]), ["AUC", "AP wake"]] = np.nan  # AUC/AP не зависят от порога
+            frame["признаки"] = frame["признаки"].where(~frame.duplicated(["признаки"]), "")
+            cols = ["accuracy", "wake найден", "κ", "AUC", "AP wake", "PPV wake", "F1 wake", "macro F1"]
+            out += [f"**{CLASSIFIERS_RU[clf]}**",
+                    md_table(bolded(frame.assign(_g=d.sensitivity_target.values), cols, group="_g", drop=["_g"]),
+                             list(frame.columns))]
+    if tc is not None:
+        rows = []
+        for _, r in tc.iterrows():
+            p = PAPER_T6.get((r.classifier, r.feature_set), (np.nan,) * 4)
+            rows.append([CLASSIFIERS_RU[r.classifier], r.feature_set, r.nrem_correct, p[0], r.rem_correct, p[1],
+                         r.best_accuracy, p[2], r.kappa, p[3], r.f1_macro_best, r.f1_macro_balanced, r.f1_rem_balanced])
+        frame = pd.DataFrame(rows, columns=["модель", "признаки", "NREM найден", "NREM статья", "REM найден",
+                                            "REM статья", "лучшая accuracy", "accuracy статья", "κ", "κ статья",
+                                            "macro F1 (лучшая acc.)", "macro F1 (NREM=REM)", "F1 REM (NREM=REM)"])
+        out += ["### Таблица 6. Wake / NREM / REM (wake найден = 0.6)",
+                md_table(bolded(frame, ["NREM найден", "REM найден", "лучшая accuracy", "κ", "macro F1 (лучшая acc.)",
+                                        "macro F1 (NREM=REM)", "F1 REM (NREM=REM)"], group="модель"), list(frame.columns)),
+                "«NREM=REM» — порог, при котором доли найденных NREM и REM уравнены (как сплошные линии на рис. 4); "
+                "«лучшая accuracy» — точка, где статья берёт κ. Именно там видно, как accuracy ≈ 0.70 достигается почти "
+                "без REM."]
+        fixed = tc[["classifier", "feature_set", "f1_wake_fixed", "f1_nrem_fixed", "f1_rem_fixed", "f1_macro_fixed"]].copy()
+        fixed["classifier"] = fixed.classifier.map(CLASSIFIERS_RU)
+        fixed.columns = ["модель", "признаки", "F1 wake", "F1 NREM", "F1 REM", "macro F1"]
+        out += ["**F1 по стадиям при фиксированных порогах статьи** (θW = 0.3, θREM = 0.35, как для рис. 5)",
+                md_table(bolded(fixed, ["F1 wake", "F1 NREM", "F1 REM", "macro F1"], group="модель"), list(fixed.columns))]
+
+    ba = read_csv(a / "bland_altman_stats.csv")
+    if ba is not None:
+        names = {"TST": "TST, мин", "SOL": "SOL, мин", "WASO": "WASO, мин", "SE": "SE (доля)", "REM": "REM, мин",
+                 "NREM": "NREM, мин"}
+        ba = ba.assign(metric=ba.metric.map(names))
+        ba["границы согласия"] = ba.apply(lambda r: f"[{r.loa_low:.2f}; {r.loa_high:.2f}]", axis=1)
+        frame = ba[["metric", "feature_set", "bias", "sd", "границы согласия"]].rename(
+            columns={"metric": "показатель", "feature_set": "признаки", "bias": "сдвиг (PSG − модель)", "sd": "SD"})
+        frame["показатель"] = frame["показатель"].where(~frame.duplicated(["показатель"]), "")
+        out += [f"### Рисунок 5. Bland–Altman: показатели сна ({ps_model_ru}, θW = 0.3, θREM = 0.35)",
+                "Положительный сдвиг — модель **недооценивает** показатель. Чем уже границы согласия, тем надёжнее "
+                "оценка для отдельного человека.",
+                df_table(frame)]
+
+    p6 = read_csv(a / "per_subject_theta.csv")
+    p7 = read_csv(a / "per_subject_tpr.csv")
+    if p6 is not None:
+        desc = p6.drop(columns=["subject"]).describe().T[["min", "25%", "50%", "75%", "max"]].reset_index()
+        desc.columns = ["метрика", "мин", "25%", "медиана", "75%", "макс"]
+        desc["метрика"] = desc["метрика"].map({"accuracy": "accuracy", "wake_correct": "wake найден",
+                                               "sleep_correct": "сон найден", "kappa": "κ", "f1_wake": "F1 wake"})
+        out += [f"### Рисунок 6. Качество по людям ({ps_model_ru}, Motion, HR, Clock, P(wake) ≥ 0.3 → wake)",
+                df_table(desc)]
+    if p7 is not None:
+        g = p7.groupby("tpr")[["accuracy", "wake_correct"]].median().reset_index()
+        g.columns = ["сон найден (порог под человека)", "accuracy, медиана", "wake найден, медиана"]
+        out += ["### Рисунок 7. Порог под каждого человека", df_table(g)]
+    return out
+
+
+GALLERY = [  # (папка относительно результатов, файл, подпись) — в порядке показа
+    ("paper_metrics", "fig_summary_models.png", "Все модели статьи и наборы признаков: AUC, κ, F1 wake"),
+    ("paper_metrics", "fig2_roc_sleep_wake.png", "Рис. 2: ROC сон/бодрствование, 4 модели"),
+    ("paper_metrics", "fig3_pr_wake.png", "Рис. 3: precision–recall для wake"),
+    ("paper_metrics", "fig4_three_class.png", "Рис. 4: wake / NREM / REM"),
+    ("paper_metrics", "fig5_bland_altman.png", "Рис. 5: Bland–Altman показателей сна"),
+    ("paper_metrics", "fig6_per_subject_theta.png", "Рис. 6: качество по людям при фиксированном пороге"),
+    ("paper_metrics", "fig7_per_subject_tpr.png", "Рис. 7: качество по людям при пороге под человека"),
+    ("f1", "f1_vs_accuracy.png", "Accuracy против F1 (с моделью «всегда сон»)"),
+    ("f1", "f1_threshold.png", "F1 бодрствования в зависимости от порога"),
+    ("f1", "f1_three_class_and_subjects.png", "F1 по стадиям и по людям"),
+    ("importance", "A_subsets_shapley.png", "Важность признаков: подмножества и значения Шепли"),
+    ("importance", "B_model_weights.png", "Веса моделей"),
+    ("importance", "C_permutation.png", "Permutation importance"),
+    ("importance", "D_shap_beeswarm_lgbm.png", "SHAP (LightGBM)"),
+    ("importance", "D_shap_three_class.png", "SHAP по стадиям"),
+    ("importance", "D_shap_over_night_46343.png", "Что «говорит» каждый признак по ходу ночи"),
+    ("logreg", "logreg_overview.png", "Логистическая регрессия: сигмоида, калибровка, регуляризация, бутстреп"),
+    ("logreg", "logreg_linearity_check.png", "Проверка линейности по log-odds"),
+    ("improve", "roc_paper_vs_improved.png", "Модель статьи против улучшенных"),
+    ("improve", "shap_lgbm_ext_sw.png", "SHAP расширенной модели"),
+    ("time_of_night", "quality_by_hour.png", "Качество по часам ночи"),
+    ("dataset", "coverage.png", "Покрытие сигналов по испытуемым"),
+    ("dataset", "stage_distribution.png", "Распределение стадий по испытуемым"),
+    ("dataset", "subject_46343_night.png", "Пример ночи: ускорение, ENMO, пульс, гипнограмма"),
+]
+
+
+def section_gallery(adir, fig_dirs, out_path):
+    import os
+    out = ["## Графики",
+           "Ключевые рисунки прямо здесь; полный список файлов — ниже."]
+    shown = set()
+    for folder, name, caption in GALLERY:
+        p = adir / folder / name
+        if p.exists():
+            rel = Path(os.path.relpath(p, out_path.parent)).as_posix().replace(" ", "%20")
+            out.append(f"**{caption}**\n\n![{caption}]({rel})")
+            shown.add(p.resolve())
+    paper_figs = [d / n for d in fig_dirs for n in ("figure_50_sw_roc.png", "figure_50_sw_pr.png",
+                                                    "figure_20_three_class_roc.png")]
+    for p in paper_figs:
+        p2 = p if p.exists() else p.parent / "figures_paper" / p.name
+        if p2.exists() and p2.resolve() not in shown:
+            rel = Path(os.path.relpath(p2, out_path.parent)).as_posix().replace(" ", "%20")
+            out.append(f"**Оригинальный код статьи: {p2.name}**\n\n![{p2.name}]({rel})")
+            shown.add(p2.resolve())
+    out.append("### Все остальные рисунки")
     for d in fig_dirs:
         pngs = sorted(d.rglob("*.png")) if d.exists() else []
-        pngs = [p for p in pngs if not p.name.startswith("data_validation_")]
-        if not pngs:
-            continue
-        out.append(f"**{d.relative_to(ROOT).as_posix()}**")
+        pngs = [p for p in pngs if not p.name.startswith("data_validation_") and p.resolve() not in shown]
         for p in pngs:
-            rel = Path(__import__("os").path.relpath(p, out_path.parent)).as_posix()
+            rel = Path(os.path.relpath(p, out_path.parent)).as_posix()
             out.append(f"- [{p.relative_to(d).as_posix()}]({rel.replace(' ', '%20')})")
     out.append("Рисунок 1 статьи (пример ночи) для каждого испытуемого — файлы `data_validation_<id>.png`.")
     return out
@@ -370,14 +579,22 @@ def main():
         out_path = Path(args.out) if args.out else ROOT / "outputs" / "RESULTS.md"
     out_path = out_path if out_path.is_absolute() else ROOT / out_path
 
+    sections = [section_paper_metrics(analysis_dir), section_paper(tables_dir), section_dataset(analysis_dir),
+                section_importance(analysis_dir), section_logreg(analysis_dir), section_improve(analysis_dir),
+                section_time(analysis_dir), section_f1(analysis_dir), section_gallery(analysis_dir, fig_dirs, out_path)]
+    # единая нумерация разделов «## N. …» и содержание
+    titles = []
+    for section in sections:
+        title = re.sub(r"^## (\d+\.\s*)?", "", section[0])
+        titles.append(title)
+        section[0] = f"## {len(titles)}. {title}"
     parts = ["# Результаты проекта: предсказание стадий сна по Apple Watch",
              "Сгенерировано `repro/08_results_markdown.py` из готовых результатов (ничего не пересчитывается). "
-             "Описание метрик — `docs/LOGREG_RU.md` и `docs/F1_RU.md`.",
-             "**Содержание:** 1. Воспроизведение статьи · 2. Данные · 3. Важность признаков · 4. Логистическая регрессия · "
-             "5. Улучшение модели · 6. Качество по времени ночи · 7. F1 · 8. Картинки"]
-    for section in (section_paper(tables_dir), section_dataset(analysis_dir), section_importance(analysis_dir),
-                    section_logreg(analysis_dir), section_improve(analysis_dir), section_time(analysis_dir),
-                    section_f1(analysis_dir), section_figures(fig_dirs, out_path)):
+             "Подробнее о модели и метриках — `docs/LOGREG_RU.md` и `docs/F1_RU.md`.",
+             "**Содержание:** " + " · ".join(f"{i}. {t}" for i, t in enumerate(titles, 1)),
+             "**Метрики, которые встречаются ниже**",
+             md_table(GLOSSARY, ["метрика", "что значит"])]
+    for section in sections:
         parts += section
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text("\n\n".join(parts) + "\n", encoding="utf-8")

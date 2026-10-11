@@ -15,6 +15,7 @@
 import itertools
 import json
 import math
+import os
 import warnings
 
 import lightgbm as lgb
@@ -68,7 +69,7 @@ def loso_predict(data, features, kind, target="sw"):
         model = make_model(kind).fit(X, y)
         return test_subject, model.predict_proba(Xt)
 
-    results = dict(Parallel(n_jobs=-1)(delayed(fold)(s) for s in sl.SUBJECTS))
+    results = dict(Parallel(n_jobs=int(os.environ.get("SLEEP_N_JOBS", -1)))(delayed(fold)(s) for s in sl.SUBJECTS))
     return np.vstack([results[s] for s in sl.SUBJECTS])
 
 
@@ -195,7 +196,7 @@ def permutation_importance(data, kind, n_repeats=10):
         Xt, yt, _ = sl.stack(data, [test_subject], FEATURES)
         return test_subject, make_model(kind).fit(X, sl.sleep_wake(y))
 
-    models = dict(Parallel(n_jobs=-1)(delayed(fold)(s) for s in sl.SUBJECTS))
+    models = dict(Parallel(n_jobs=int(os.environ.get("SLEEP_N_JOBS", -1)))(delayed(fold)(s) for s in sl.SUBJECTS))
     Xs = {s: sl.stack(data, [s], FEATURES)[0] for s in sl.SUBJECTS}
     y = labels(data)
 

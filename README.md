@@ -29,6 +29,19 @@ wearable device*. SLEEP 42(12), zsz180 (2019). [doi:10.1093/sleep/zsz180](https:
 
 ## Быстрый старт
 
+**Всё одной командой** (обучить модели, построить рисунки и собрать все таблицы и графики в `outputs/RESULTS.md`):
+
+```bash
+python repro/run_all.py            # все метрики статьи (табл. 1–6, рис. 2–7) + F1 для 4 моделей, вкл. нейросеть
+python repro/run_all.py --skip-nn  # без нейросети (быстрее)
+python repro/run_all.py --all      # плюс все остальные анализы проекта
+python repro/run_all.py --dry-run  # только показать план
+```
+
+В VS Code — конфигурации «0. RUN ALL…». Подробнее о шагах — в шапке `repro/run_all.py`.
+
+Пошагово:
+
 Python 3.12.
 
 ```bash
@@ -49,6 +62,7 @@ python repro/04_improve_model.py         # расширенные признак
 python repro/06_quality_by_time.py       # качество по часам ночи
 python repro/07_f1_metrics.py            # F1 против accuracy, F1 по стадиям и по людям
 python repro/08_results_markdown.py      # собрать все таблицы в outputs/RESULTS.md (Markdown вместо LaTeX)
+python repro/09_paper_metrics.py         # все метрики статьи + F1 для 4 моделей статьи (LOSO), рис. 2–7
 ```
 
 Пересчитать признаки с нуля и рисунок 1 — нужен датасет (2.3 ГБ, в репозитории не хранится,
