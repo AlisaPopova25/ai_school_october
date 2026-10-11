@@ -1,3 +1,4 @@
+import os
 import time
 from functools import partial
 from multiprocessing import Pool, cpu_count
@@ -49,14 +50,13 @@ class ClassifierService(object):
 
     @staticmethod
     def run_in_parallel(function, data_splits, classifier, subject_dictionary, feature_set):
-        pool = Pool(cpu_count())
-
         single_run_wrapper = partial(function,
                                      attributed_classifier=classifier,
                                      subject_dictionary=subject_dictionary,
                                      feature_set=feature_set)
 
-        results = pool.map(single_run_wrapper, data_splits)
+        with Pool(int(os.environ.get("SLEEP_N_JOBS", cpu_count()))) as pool:  # close workers after each feature set (otherwise processes pile up)
+            results = pool.map(single_run_wrapper, data_splits)
 
         return results
 

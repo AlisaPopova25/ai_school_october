@@ -15,6 +15,41 @@ from source.analysis.setup.attributed_classifier import AttributedClassifier
 from source.analysis.setup.feature_type import FeatureType
 
 
+class LiblinearLogisticRegression(LogisticRegression):
+    """LogisticRegression(solver='liblinear') with the multiclass behaviour of scikit-learn 0.20 (used in the paper).
+
+    Old sklearn silently fitted liblinear one-vs-rest on 3 classes; sklearn >= 1.8 raises an error instead.
+    For 3 classes we fit one binary model per class (class weights applied as sample weights by the original
+    label, like sklearn 0.20 did) and normalise the per-class sigmoids, exactly as multi_class='ovr' did.
+    """
+
+    def fit(self, X, y, sample_weight=None):
+        classes = np.unique(y)
+        if len(classes) <= 2:
+            return super().fit(X, y, sample_weight)
+        from sklearn.utils.class_weight import compute_class_weight
+        weights = np.ones(len(y)) if sample_weight is None else np.asarray(sample_weight, dtype=float)
+        if self.class_weight is not None:
+            cw = self.class_weight if isinstance(self.class_weight, dict) else dict(
+                zip(classes, compute_class_weight(self.class_weight, classes=classes, y=y)))
+            weights = weights * np.array([cw[c] for c in y])
+        params = self.get_params()
+        params['class_weight'] = None
+        binary = [LogisticRegression(**params).fit(X, (y == c).astype(int), sample_weight=weights) for c in classes]
+        self.classes_ = classes
+        self.coef_ = np.vstack([m.coef_ for m in binary])
+        self.intercept_ = np.concatenate([m.intercept_ for m in binary])
+        self.n_iter_ = np.concatenate([np.atleast_1d(m.n_iter_) for m in binary])
+        self.n_features_in_ = X.shape[1]
+        return self
+
+    def predict_proba(self, X):
+        if len(self.classes_) <= 2:
+            return super().predict_proba(X)
+        p = 1 / (1 + np.exp(-self.decision_function(X)))
+        return p / p.sum(axis=1, keepdims=True)
+
+
 def get_project_root() -> Path:
     return Path(__file__).parent.parent
 
@@ -26,17 +61,38 @@ def get_classifiers():
                                                                    min_samples_split=10, min_samples_leaf=32,
                                                                    bootstrap=True)),
             AttributedClassifier(name='Logistic Regression',
-                                 classifier=LogisticRegression(penalty='l1', solver='liblinear', verbose=0,
-                                                               multi_class='auto')),
+                                 classifier=LiblinearLogisticRegression(penalty='l1', solver='liblinear', verbose=0)),
             AttributedClassifier(name='k-Nearest Neighbors',
                                  classifier=KNeighborsClassifier(weights='distance')),
             AttributedClassifier(name='Neural Net',
                                  classifier=MLPClassifier(activation='relu', hidden_layer_sizes=(15, 15, 15),
                                                           max_iter=2000, alpha=0.01, solver='adam', verbose=False,
-                                                          n_iter_no_change=20))]
+                                                          n_iter_no_change=20))] + get_catboost_classifiers()
+
+
+def get_catboost_classifiers():
+    """CatBoost joins every classifier list when `catboost` is installed (SLEEP_INCLUDE_CATBOOST=0 turns it off)."""
+    import os
+    from source.analysis.classification.catboost_classifier import CatBoostSleepClassifier, catboost_available
+    if os.environ.get('SLEEP_INCLUDE_CATBOOST', '1') == '0':
+        return []
+    if not catboost_available():
+        print('CatBoost is skipped: install it with  pip install "catboost>=1.2"')
+        return []
+    return [AttributedClassifier(name='CatBoost',
+                                 classifier=CatBoostSleepClassifier(iterations=3000, learning_rate=0.03, depth=6,
+                                                                    l2_leaf_reg=3.0, early_stopping_rounds=200,
+                                                                    eval_fraction=0.15, refit_on_full=True,
+                                                                    random_seed=0))]
 
 
 def get_base_feature_sets():
+    from source.constants import Constants
+    if Constants.INCLUDE_CIRCADIAN:  # the paper's main results use the circadian-model clock proxy
+        return [[FeatureType.count],
+                [FeatureType.heart_rate],
+                [FeatureType.count, FeatureType.heart_rate],
+                [FeatureType.count, FeatureType.heart_rate, FeatureType.circadian_model]]
     return [[FeatureType.count],
             [FeatureType.heart_rate],
             [FeatureType.count, FeatureType.heart_rate],

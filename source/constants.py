@@ -7,7 +7,7 @@ class Constants(object):
     WAKE_THRESHOLD = 0.5  #
     REM_THRESHOLD = 0.35
 
-    INCLUDE_CIRCADIAN = False
+    INCLUDE_CIRCADIAN = True  # uses the Python port in preprocessing/time/clock_proxy/circadian_model.py
     EPOCH_DURATION_IN_SECONDS = 30
     SECONDS_PER_MINUTE = 60
     SECONDS_PER_DAY = 3600 * 24

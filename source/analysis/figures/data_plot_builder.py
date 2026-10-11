@@ -12,6 +12,8 @@ from source.constants import Constants
 class DataPlotBuilder(object):
     @staticmethod
     def timestamp_to_string(ts):
+        if abs(ts) < 1e9:  # PhysioNet release: seconds relative to PSG start (localtime fails on Windows)
+            return '%d:%02d' % (ts // 3600, (ts % 3600) // 60)
         return time.strftime('%H:%M:%S', time.localtime(ts))
 
     @staticmethod

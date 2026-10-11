@@ -176,7 +176,8 @@ class CurvePlotBuilder(object):
         max_width = max(widths)
         max_height = max(heights)
 
-        new_image = Image.new('RGB', (2 * max_width, 2 * max_height))
+        number_of_rows = int(math.ceil(len(images) / 2))  # 4 models -> 2x2, 5 (with CatBoost) -> 2x3
+        new_image = Image.new('RGB', (2 * max_width, number_of_rows * max_height), 'white')
 
         count = 0
         for im in images:

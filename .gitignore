@@ -1,8 +1,22 @@
+# Python / IDE
 __pycache__/
-*/__pycache__/
-*/*/__pycache__/
-outputs/features/
-outputs/cropped/
-outputs/figures/
-data
+*.pyc
+.venv/
+.ipynb_checkpoints/
 .idea/
+*.part
+
+# Сырое ускорение (2.2 ГБ, файлы до 399 МБ) не помещается в git: python repro/download_data.py
+data/motion/*.txt
+data/mesa/*
+!data/mesa/.gitkeep
+
+# Промежуточные и пересчитываемые файлы (снимок результатов — в results/)
+outputs/cropped/*
+!outputs/cropped/.gitkeep
+outputs/figures/*
+!outputs/figures/.gitkeep
+outputs/logs/
+outputs/*.log
+outputs/repro/*
+!outputs/repro/ext_features/
