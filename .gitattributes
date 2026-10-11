@@ -1,0 +1,8 @@
+# Датасет и признаки — байт в байт (иначе на Windows не сойдутся SHA256 из data/SHA256SUMS.txt)
+data/** -text
+outputs/** -text
+*.png binary
+*.npz binary
+*.pdf binary
+# Shell-скрипты всегда с LF, чтобы запускались на Linux/ВМ
+*.sh text eol=lf
