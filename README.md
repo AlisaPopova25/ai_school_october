@@ -66,6 +66,9 @@ python source/preprocessing/preprocessing_runner.py    # ~3 мин
 **Обучение CatBoost** — `python repro/train_catboost.py` (или в VS Code конфигурация «6. Train CatBoost»): сам ставит
 catboost, подбирает число процессов под ядра и память и прогоняет рис. 2–4, S1–S4 и таблицы 2–6.
 `--dry-run` — только показать план; `--device GPU`; `--jobs 4 --sw-trials 20 --three-class-trials 10` — облегчённо для ноутбука.
+Все настройки CatBoost (параметры модели, перебор, число разбиений) — в одном файле
+`source/analysis/classification/catboost_config.py`: переключатель `FAST = True` — быстрый режим (сейчас включён,
+100 деревьев, без перебора, 10 / 5 разбиений), `FAST = False` — полный протокол статьи.
 
 ## Ключевые результаты
 

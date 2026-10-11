@@ -25,6 +25,10 @@ VS Code: Run and Debug (Ctrl+Shift+D) → «6. Train CatBoost (CPU)» → F5.
    ограничения потоков (OpenBLAS и др.) нужно задать ДО старта Python, поэтому задачи запускаются как дочерние процессы.
 5. Собирает общие картинки со всеми моделями (`02_run_original_analysis.py combine`).
 
+Настройки (параметры модели, перебор, число разбиений) — ОДИН файл:
+    source/analysis/classification/catboost_config.py
+Там переключатель FAST: True — быстро (минуты, проверить запуск), False — полный протокол статьи (часы).
+
 Результаты: таблицы и ход работы — outputs/logs/catboost_<задача>.log,
 картинки — outputs/figures/CatBoost_*.png и общие outputs/figures/figure_*.png.
 Сама модель — source/analysis/classification/catboost_classifier.py.
@@ -38,6 +42,10 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+from source.analysis.classification import catboost_config  # noqa: E402  — все настройки CatBoost здесь
+
+CONFIG_FILE = "source/analysis/classification/catboost_config.py"
 DRIVER = ROOT / "repro" / "02_run_original_analysis.py"
 LOGS = ROOT / "outputs" / "logs"
 GB_PER_PROCESS = 1.2  # измерено: один рабочий процесс пайплайна с загруженными признаками
@@ -141,12 +149,18 @@ def main():
                         help="CPU (по умолчанию) или GPU; при сбое GPU CatBoost сам перейдёт на CPU")
     parser.add_argument("--jobs", type=int, default=0, help="параллельных процессов (0 = подобрать автоматически)")
     parser.add_argument("--threads", type=int, default=2, help="потоков на одну модель CatBoost")
-    parser.add_argument("--sw-trials", type=int, default=50, help="разбиений для сна/бодрствования (в статье 50)")
-    parser.add_argument("--three-class-trials", type=int, default=20, help="разбиений для трёх классов (в статье 20)")
+    parser.add_argument("--sw-trials", type=int, default=catboost_config.SW_TRIALS,
+                        help=f"разбиений для сна/бодрствования (по умолчанию из {CONFIG_FILE}; в статье 50)")
+    parser.add_argument("--three-class-trials", type=int, default=catboost_config.THREE_CLASS_TRIALS,
+                        help=f"разбиений для трёх классов (по умолчанию из {CONFIG_FILE}; в статье 20)")
     parser.add_argument("--tasks", nargs="+", choices=list(TASKS), default=list(TASKS), help="какие задачи запускать")
     parser.add_argument("--dry-run", action="store_true", help="показать план и выйти, ничего не обучая")
     args = parser.parse_args()
 
+    mode = "БЫСТРЫЙ (FAST = True)" if catboost_config.FAST else "ПОЛНЫЙ протокол статьи (FAST = False)"
+    print(f"Режим: {mode}. Настройки: {CONFIG_FILE}")
+    print(f"  модель: {catboost_config.PARAMS}")
+    print(f"  перебор: {catboost_config.GRID}")
     physical, logical, free_gb, total_gb = machine_resources()
     jobs = args.jobs or choose_jobs(args.threads, physical, free_gb)
     memory = f"свободно {free_gb:.1f} из {total_gb:.1f} ГБ" if free_gb is not None else "объём неизвестен (нет psutil)"

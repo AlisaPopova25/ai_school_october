@@ -79,11 +79,8 @@ def get_catboost_classifiers():
     if not catboost_available():
         print('CatBoost is skipped: install it with  pip install "catboost>=1.2"')
         return []
-    return [AttributedClassifier(name='CatBoost',
-                                 classifier=CatBoostSleepClassifier(iterations=3000, learning_rate=0.03, depth=6,
-                                                                    l2_leaf_reg=3.0, early_stopping_rounds=200,
-                                                                    eval_fraction=0.15, refit_on_full=True,
-                                                                    random_seed=0))]
+    from source.analysis.classification import catboost_config  # all CatBoost settings live there
+    return [AttributedClassifier(name='CatBoost', classifier=CatBoostSleepClassifier(**catboost_config.PARAMS))]
 
 
 def get_base_feature_sets():
