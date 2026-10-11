@@ -1,0 +1,18 @@
+# Python 3.12; точные версии, на которых всё проверено, — в requirements-lock.txt
+numpy>=2.0
+scipy>=1.13
+pandas>=2.2
+scikit-learn>=1.6
+matplotlib>=3.8
+seaborn>=0.13
+Pillow>=10.0
+lightgbm>=4.3
+shap>=0.46
+pdfminer.six
+docx2txt
+pyEDFlib
+pypdf
+nbformat
+jupyter
+# необязательно: пятая модель пайплайна статьи
+catboost>=1.2
