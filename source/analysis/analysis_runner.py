@@ -55,6 +55,7 @@ def figure_leave_one_out_roc_and_pr():
         CurvePlotBuilder.make_roc_sw(classifier_summary)
         CurvePlotBuilder.make_pr_sw(classifier_summary)
         TableBuilder.print_table_sw(classifier_summary)
+        TableBuilder.print_table_sw_f1(classifier_summary)  # added: F1
 
     CurvePlotBuilder.combine_plots_as_grid(classifiers, len(SubjectBuilder.get_all_subject_ids()), '_sw_pr')
     CurvePlotBuilder.combine_plots_as_grid(classifiers, len(SubjectBuilder.get_all_subject_ids()), '_sw_roc')
@@ -75,6 +76,7 @@ def figures_mc_sleep_wake():
         CurvePlotBuilder.make_roc_sw(classifier_summary)
         CurvePlotBuilder.make_pr_sw(classifier_summary)
         TableBuilder.print_table_sw(classifier_summary)
+        TableBuilder.print_table_sw_f1(classifier_summary)  # added: F1
 
     CurvePlotBuilder.combine_plots_as_grid(classifiers, trial_count, '_sw_pr')
     CurvePlotBuilder.combine_plots_as_grid(classifiers, trial_count, '_sw_roc')
@@ -99,6 +101,7 @@ def figures_mc_three_class():
         three_class_performance_summaries.append(classifier_summary)
 
     TableBuilder.print_table_three_class(three_class_performance_summaries)
+    TableBuilder.print_table_three_class_f1(three_class_performance_summaries)  # added: F1
     CurvePlotBuilder.combine_plots_as_grid(classifiers, trial_count, '_three_class_roc')
     CurvePlotBuilder.combine_plots_as_grid(classifiers, trial_count, '_ovr_rem_roc')
     CurvePlotBuilder.combine_plots_as_grid(classifiers, trial_count, '_ovr_nrem_roc')
@@ -121,6 +124,7 @@ def figures_mesa_sleep_wake():
         CurvePlotBuilder.make_roc_sw(classifier_summary, '_mesa')
         CurvePlotBuilder.make_pr_sw(classifier_summary, '_mesa')
         TableBuilder.print_table_sw(classifier_summary)
+        TableBuilder.print_table_sw_f1(classifier_summary)  # added: F1
 
     CurvePlotBuilder.combine_plots_as_grid(classifiers, 1, '_mesa_sw_pr')
     CurvePlotBuilder.combine_plots_as_grid(classifiers, 1, '_mesa_sw_roc')
@@ -155,6 +159,7 @@ def figures_mesa_three_class():
         CurvePlotBuilder.combine_sw_and_three_class_plots(attributed_classifier, 1, 'mesa')
 
     TableBuilder.print_table_three_class(three_class_performance_summaries)
+    TableBuilder.print_table_three_class_f1(three_class_performance_summaries)  # added: F1
     CurvePlotBuilder.combine_plots_as_grid(classifiers, 1, '_mesa_three_class_roc')
 
 
@@ -176,6 +181,7 @@ def figures_compare_time_based_features():
         CurvePlotBuilder.make_roc_sw(classifier_summary, '_time_only')
         CurvePlotBuilder.make_pr_sw(classifier_summary, '_time_only')
         TableBuilder.print_table_sw(classifier_summary)
+        TableBuilder.print_table_sw_f1(classifier_summary)  # added: F1
 
     CurvePlotBuilder.combine_plots_as_grid(classifiers, trial_count, '_time_only_sw_pr')
     CurvePlotBuilder.combine_plots_as_grid(classifiers, trial_count, '_time_only_sw_roc')

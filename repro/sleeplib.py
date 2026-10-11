@@ -8,7 +8,7 @@
 from pathlib import Path
 
 import numpy as np
-from sklearn.metrics import cohen_kappa_score, roc_auc_score, roc_curve
+from sklearn.metrics import cohen_kappa_score, f1_score, precision_recall_curve, roc_auc_score, roc_curve
 
 ROOT = Path(__file__).resolve().parent.parent
 FEATURES_DIR = ROOT / "outputs" / "features"
@@ -98,8 +98,26 @@ def sw_metrics_at_sensitivity(y_sleep, p_sleep, sensitivities=(0.8, 0.9, 0.93, 0
             sleep_correct=np.mean(pred[y_sleep == 1] == 1),
             kappa=cohen_kappa_score(y_sleep, pred),
             threshold=threshold,
+            **sw_f1(y_sleep, pred),
         ))
     return rows
+
+
+def sw_f1(y_sleep, pred):
+    """F1 для сна/бодрствования: wake как положительный класс (редкий, ~8%), sleep и их среднее (macro)."""
+    f1_wake = f1_score(y_sleep, pred, pos_label=0, zero_division=0)
+    f1_sleep = f1_score(y_sleep, pred, pos_label=1, zero_division=0)
+    return dict(f1_wake=f1_wake, f1_sleep=f1_sleep, f1_macro=(f1_wake + f1_sleep) / 2)
+
+
+def best_f1_wake(y_sleep, p_sleep):
+    """Максимальный F1(wake) по всем порогам и порог на P(wake), где он достигается (без привязки к sensitivity)."""
+    y_wake = 1 - np.asarray(y_sleep)
+    precision, recall, thresholds = precision_recall_curve(y_wake, 1 - np.asarray(p_sleep))
+    f1 = 2 * precision * recall / np.clip(precision + recall, 1e-12, None)
+    i = int(np.argmax(f1[:-1]))  # последняя точка PR-кривой не имеет порога
+    return dict(best_f1_wake=f1[i], best_f1_wake_threshold=thresholds[i],
+                best_f1_wake_precision=precision[i], best_f1_wake_recall=recall[i])
 
 
 def sw_summary(y_sleep, p_sleep):
@@ -110,6 +128,11 @@ def sw_summary(y_sleep, p_sleep):
         out[f"wake_correct{tag}"] = r["wake_correct"]
         out[f"accuracy{tag}"] = r["accuracy"]
         out[f"kappa{tag}"] = r["kappa"]
+    for r in rows:  # F1 добавлен отдельными ключами после старых, старые не меняются
+        tag = f"@{int(round(r['sensitivity'] * 100))}"
+        out[f"f1_wake{tag}"] = r["f1_wake"]
+        out[f"f1_macro{tag}"] = r["f1_macro"]
+    out.update(best_f1_wake(y_sleep, p_sleep))
     return out
 
 
@@ -155,9 +178,19 @@ def three_class_at_wake_fpr(y3, proba, wake_fpr):
         if acc > best_acc[0]:
             best_acc = (acc, thr, pred)
     _, thr, pred, acc_c = best
+    f1_balanced = three_class_f1(y3, pred)
     return dict(wake_fpr=wake_fpr, wake_correct=acc_c[0], nrem_correct=acc_c[1], rem_correct=acc_c[2],
                 balanced_accuracy=np.mean(pred == y3), balanced_kappa=cohen_kappa_score(y3, pred),
-                best_accuracy=best_acc[0], best_kappa=cohen_kappa_score(y3, best_acc[2]))
+                best_accuracy=best_acc[0], best_kappa=cohen_kappa_score(y3, best_acc[2]),
+                # F1 (добавлено): в точке уравненных NREM/REM и в точке «лучшей accuracy», как kappa в Таблице 6
+                balanced_f1_macro=f1_balanced["f1_macro"], balanced_f1_rem=f1_balanced["f1_rem"],
+                best_f1_macro=three_class_f1(y3, best_acc[2])["f1_macro"])
+
+
+def three_class_f1(y3, pred):
+    """Macro F1 по wake/NREM/REM и F1 каждого класса."""
+    per_class = f1_score(y3, pred, labels=[0, 1, 2], average=None, zero_division=0)
+    return dict(f1_macro=float(per_class.mean()), f1_wake=per_class[0], f1_nrem=per_class[1], f1_rem=per_class[2])
 
 
 def fixed_threshold_predict(proba, theta_wake=0.3, theta_rem=0.35):

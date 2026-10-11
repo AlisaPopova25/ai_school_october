@@ -53,6 +53,7 @@ def mc_sw(trials):
         CurvePlotBuilder.make_roc_sw(summary)
         CurvePlotBuilder.make_pr_sw(summary)
         TableBuilder.print_table_sw(summary)
+        TableBuilder.print_table_sw_f1(summary)  # added: F1
     CurvePlotBuilder.combine_plots_as_grid(classifiers, trials, '_sw_pr')
     CurvePlotBuilder.combine_plots_as_grid(classifiers, trials, '_sw_roc')
 
@@ -67,6 +68,7 @@ def mc_3class(trials):
         summary.performance_dictionary = CurvePlotBuilder.make_three_class_roc(summary)
         summaries.append(summary)
     TableBuilder.print_table_three_class(summaries)
+    TableBuilder.print_table_three_class_f1(summaries)  # added: F1
     for ext in ['_three_class_roc', '_ovr_rem_roc', '_ovr_nrem_roc', '_ovr_wake_roc']:
         CurvePlotBuilder.combine_plots_as_grid(classifiers, trials, ext)
 
@@ -95,6 +97,7 @@ def time_features(trials):
         CurvePlotBuilder.make_roc_sw(summary, '_time_only')
         CurvePlotBuilder.make_pr_sw(summary, '_time_only')
         TableBuilder.print_table_sw(summary)
+        TableBuilder.print_table_sw_f1(summary)  # added: F1
     CurvePlotBuilder.combine_plots_as_grid(classifiers, trials, '_time_only_sw_pr')
     CurvePlotBuilder.combine_plots_as_grid(classifiers, trials, '_time_only_sw_roc')
 

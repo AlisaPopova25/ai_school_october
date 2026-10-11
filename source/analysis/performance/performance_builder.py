@@ -1,5 +1,6 @@
 import numpy as np
-from sklearn.metrics import roc_curve, auc, cohen_kappa_score, accuracy_score, recall_score, precision_score
+from sklearn.metrics import roc_curve, auc, cohen_kappa_score, accuracy_score, recall_score, precision_score, \
+    f1_score
 
 from source.analysis.performance.epoch_performance import SleepWakePerformance
 from source.analysis.setup.sleep_label import SleepWakeLabel, ThreeClassLabel
@@ -34,13 +35,21 @@ class PerformanceBuilder(object):
         wake_predictive_value = precision_score(raw_performance.true_labels, predicted_labels,
                                                 pos_label=SleepWakeLabel.wake.value)
 
+        f1_wake = f1_score(raw_performance.true_labels, predicted_labels, pos_label=SleepWakeLabel.wake.value,
+                           zero_division=0)
+        f1_sleep = f1_score(raw_performance.true_labels, predicted_labels, pos_label=SleepWakeLabel.sleep.value,
+                            zero_division=0)
+
         return SleepWakePerformance(accuracy=accuracy,
                                     wake_correct=wake_correct,
                                     sleep_correct=sleep_correct,
                                     kappa=kappa,
                                     auc=auc_value,
                                     sleep_predictive_value=sleep_predictive_value,
-                                    wake_predictive_value=wake_predictive_value)
+                                    wake_predictive_value=wake_predictive_value,
+                                    f1_wake=f1_wake,
+                                    f1_sleep=f1_sleep,
+                                    f1_macro=(f1_wake + f1_sleep) / 2)
 
     @staticmethod
     def build_with_true_positive_rate_threshold(raw_performance, true_positive_threshold):

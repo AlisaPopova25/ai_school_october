@@ -18,6 +18,7 @@
 | Таблица 2 (логистическая регрессия) | `tables/logreg_mc_sw.txt` (LaTeX, как в статье) |
 | Таблица 6, строки LR | `tables/logreg_mc_3class.txt` |
 | Сравнение clock / cosine / time | `tables/logreg_time_features.txt` |
+| F1 к Таблицам 2 и 6 (добавлено, старые таблицы те же) | `tables/logreg_f1_mc_sw.txt`, `tables/logreg_f1_mc_3class.txt` — старая таблица, затем F1-таблица |
 
 Готовы панели логистической регрессии (все) и случайного леса (рис. 2–3). kNN, нейросеть и CatBoost ещё не
 прогнаны: общие картинки `figure_*.png` пока собраны из готовых панелей (`python repro/02_run_original_analysis.py combine`).
@@ -31,5 +32,6 @@
 | `improve/` | ~50 расширенных признаков, LightGBM, HMM-сглаживание, абляция групп признаков, SHAP | `repro/04_improve_model.py` |
 | `logreg/` | логистическая регрессия: уравнение, бутстреп-интервалы, калибровка, путь регуляризации, проверка линейности, OvR vs softmax | `repro/05_logreg_deep_dive.py` |
 | `time_of_night/` | качество по часам ночи, с clock и без | `repro/06_quality_by_time.py` |
+| `f1/` | F1 бодрствования и macro F1 против accuracy (с моделью «всегда сон»), F1 от порога, F1 по стадиям и по людям | `repro/07_f1_metrics.py` |
 
-Разбор и интерпретация — [docs/LOGREG_RU.md](../docs/LOGREG_RU.md).
+Разбор и интерпретация — [docs/LOGREG_RU.md](../docs/LOGREG_RU.md), про F1 — [docs/F1_RU.md](../docs/F1_RU.md).

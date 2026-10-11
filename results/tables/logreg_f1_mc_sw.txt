@@ -1,0 +1,46 @@
+Running Logistic Regression...
+\begin{table}  \caption{Sleep/wake differentiation performance by Logistic Regression across different feature inputs in the Apple Watch (PPG, MEMS) dataset} \begin{tabular}{l*{5}{c}} & Accuracy & Wake correct (specificity) & Sleep correct (sensitivity) & $\kappa$ & AUC \\ 
+\hline Motion only &
+0.793 & 0.716 & 0.8 & 0.279 & 0.838  \\
+& 0.869 & 0.537 & 0.9 & 0.341 &   \\
+& 0.89 & 0.465 & 0.93 & 0.358 &   \\
+& 0.904 & 0.408 & 0.95 & 0.365 &   \\
+\hline HR only &
+0.77 & 0.448 & 0.8 & 0.144 & 0.714  \\
+& 0.849 & 0.305 & 0.9 & 0.174 &   \\
+& 0.873 & 0.257 & 0.93 & 0.185 &   \\
+& 0.888 & 0.22 & 0.95 & 0.189 &   \\
+\hline Motion, HR &
+0.793 & 0.715 & 0.8 & 0.278 & 0.836  \\
+& 0.869 & 0.537 & 0.9 & 0.341 &   \\
+& 0.89 & 0.465 & 0.93 & 0.358 &   \\
+& 0.904 & 0.408 & 0.95 & 0.365 &   \\
+\hline Motion, HR, and Clock &
+0.799 & 0.792 & 0.8 & 0.313 & 0.855  \\
+& 0.877 & 0.633 & 0.9 & 0.402 &   \\
+& 0.895 & 0.523 & 0.93 & 0.401 &   \\
+& 0.907 & 0.445 & 0.95 & 0.396 &   \\
+\hline \end{tabular}  \label{tab:Logiparams} \small \vspace{.2cm} \caption*{Fraction of wake correct, fraction of sleep correct, accuracy, $\kappa$, and AUC for sleep-wake predictions of Logistic Regression with use of motion, HR, clock proxy, or combination of features. PPG, photoplethysmography; MEMS, microelectromechanical systems; HR, heart rate; AUC, area under the curve.} \end{table}
+\begin{table}  \caption{F1 for sleep/wake by Logistic Regression (wake = positive class for F1 wake)} \begin{tabular}{l*{5}{c}} & Sleep correct (sensitivity) & Wake correct & F1 wake & F1 sleep & Macro F1 \\ 
+\hline Motion only &
+0.8 & 0.716 & 0.37 & 0.876 & 0.623  \\
+& 0.9 & 0.537 & 0.41 & 0.926 & 0.668  \\
+& 0.93 & 0.465 & 0.418 & 0.939 & 0.678  \\
+& 0.95 & 0.408 & 0.417 & 0.947 & 0.682  \\
+\hline HR only &
+0.8 & 0.448 & 0.249 & 0.864 & 0.556  \\
+& 0.9 & 0.305 & 0.255 & 0.916 & 0.586  \\
+& 0.93 & 0.257 & 0.254 & 0.93 & 0.592  \\
+& 0.95 & 0.22 & 0.249 & 0.939 & 0.594  \\
+\hline Motion, HR &
+0.8 & 0.715 & 0.369 & 0.876 & 0.623  \\
+& 0.9 & 0.537 & 0.41 & 0.926 & 0.668  \\
+& 0.93 & 0.465 & 0.418 & 0.939 & 0.678  \\
+& 0.95 & 0.408 & 0.417 & 0.947 & 0.682  \\
+\hline Motion, HR, and Clock &
+0.8 & 0.792 & 0.4 & 0.879 & 0.64  \\
+& 0.9 & 0.633 & 0.466 & 0.931 & 0.698  \\
+& 0.93 & 0.523 & 0.458 & 0.942 & 0.7  \\
+& 0.95 & 0.445 & 0.447 & 0.949 & 0.698  \\
+\hline \end{tabular} \end{table}
+mc_sw done in 1.4 min

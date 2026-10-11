@@ -1,5 +1,5 @@
 import numpy as np
-from sklearn.metrics import roc_curve, precision_recall_curve, accuracy_score, cohen_kappa_score
+from sklearn.metrics import roc_curve, precision_recall_curve, accuracy_score, cohen_kappa_score, f1_score
 
 from source.analysis.performance.curve_performance import ROCPerformance, PrecisionRecallPerformance
 from source.analysis.performance.epoch_performance import ThreeClassPerformance
@@ -101,6 +101,7 @@ class CurvePerformanceBuilder(object):
             sleep_accuracy_spread = []
             accuracies = []
             kappas = []
+            f1_scores = []  # (macro, wake, nrem, rem) at the best-accuracy point, like kappas
             nrem_class_accuracies = []
             rem_class_accuracies = []
 
@@ -159,6 +160,7 @@ class CurvePerformanceBuilder(object):
                     nrem_accuracy = 0
                     best_accuracy = -1
                     kappa_at_best_accuracy = -1
+                    f1_at_best_accuracy = (0.0, 0.0, 0.0, 0.0)
 
                     count_thresh = 0
                     threshold_for_rem = 0.5
@@ -186,6 +188,9 @@ class CurvePerformanceBuilder(object):
                         if accuracy > best_accuracy:
                             best_accuracy = accuracy
                             kappa_at_best_accuracy = kappa
+                            per_class = f1_score(true_labels, predicted_labels, labels=[0, 1, 2], average=None,
+                                                 zero_division=0)
+                            f1_at_best_accuracy = (float(per_class.mean()),) + tuple(float(v) for v in per_class)
 
                         # Assess accuracy at the current threshold
                         predicted_nrem_indices = np.where(predicted_labels == 1)[0]
@@ -220,6 +225,7 @@ class CurvePerformanceBuilder(object):
                     rem_class_accuracies.append(rem_accuracy)
                     accuracies.append(best_accuracy)
                     kappas.append(kappa_at_best_accuracy)
+                    f1_scores.append(f1_at_best_accuracy)
 
             wake_scored_as_sleep_spread = np.array(wake_scored_as_sleep_spread)
             sleep_accuracy_spread = np.array(sleep_accuracy_spread)
@@ -235,6 +241,7 @@ class CurvePerformanceBuilder(object):
 
             accuracy = accuracies[index_of_best_accuracy]
             kappa = kappas[index_of_best_accuracy]
+            f1_macro, f1_wake, f1_nrem, f1_rem = f1_scores[index_of_best_accuracy]
 
             # Interpolate and add the vectors to our running totals
             cumulative_accuracies = cumulative_accuracies + np.interp(goal_fraction_wake_scored_as_sleep_spread,
@@ -263,7 +270,9 @@ class CurvePerformanceBuilder(object):
                                                             wake_correct=1 - wake_scored_as_sleep_interpolation_point,
                                                             rem_correct=rem_correct,
                                                             nrem_correct=nrem_correct,
-                                                            kappa=kappa)
+                                                            kappa=kappa,
+                                                            f1_macro=f1_macro, f1_wake=f1_wake,
+                                                            f1_nrem=f1_nrem, f1_rem=f1_rem)
             three_class_performances.append(three_class_performance)
 
         # Average over all the train/test splits

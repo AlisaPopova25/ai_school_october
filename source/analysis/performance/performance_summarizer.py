@@ -28,6 +28,12 @@ class PerformanceSummarizer(object):
 
         number_of_performance_models = len(sleep_wake_performance_array)
 
+        # F1 (added): averaged across splits like the other metrics; None if a performance has no F1
+        for name in ('f1_wake', 'f1_sleep', 'f1_macro'):
+            values = [getattr(p, name, None) for p in sleep_wake_performance_array]
+            setattr(average_performance, name,
+                    None if any(v is None for v in values) else sum(values) / number_of_performance_models)
+
         average_performance.accuracy = PerformanceSummarizer.__calculate_average(average_performance.accuracy,
                                                                                  number_of_performance_models)
 
@@ -70,6 +76,11 @@ class PerformanceSummarizer(object):
             average_performance.kappa += three_class_performance.kappa
 
         number_of_performance_models = len(three_class_performance_array)
+
+        for name in ('f1_macro', 'f1_wake', 'f1_nrem', 'f1_rem'):
+            values = [getattr(p, name, None) for p in three_class_performance_array]
+            setattr(average_performance, name,
+                    None if any(v is None for v in values) else sum(values) / number_of_performance_models)
 
         average_performance.accuracy = PerformanceSummarizer.__calculate_average(average_performance.accuracy,
                                                                                  number_of_performance_models)

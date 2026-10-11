@@ -19,7 +19,8 @@ wearable device*. SLEEP 42(12), zsz180 (2019). [doi:10.1093/sleep/zsz180](https:
 ├── data/              только README: ссылка на датасет PhysioNet и как его скачать
 ├── outputs/           готовые признаки (features, repro/ext_features); остальное код создаёт сам при запуске
 ├── results/           снимок результатов: рисунки статьи, таблицы, наш анализ (см. results/README.md)
-├── docs/              DATASET_RU.md — данные и признаки; LOGREG_RU.md — модель, результаты, вопросы к защите
+├── docs/              DATASET_RU.md — данные и признаки; LOGREG_RU.md — модель, результаты, вопросы к защите;
+│                      F1_RU.md — F1-мера: что это и зачем
 ├── paper/             статья (PDF, CC BY-NC 4.0) и извлечённый текст
 ├── archive/           старые скрипты авторов (не используются)
 └── .vscode/, .env     конфигурации запуска для VS Code
@@ -45,6 +46,7 @@ python repro/05_logreg_deep_dive.py      # разбор логистическо
 python repro/03_feature_importance.py    # важность признаков, SHAP
 python repro/04_improve_model.py         # расширенные признаки, LightGBM, HMM
 python repro/06_quality_by_time.py       # качество по часам ночи
+python repro/07_f1_metrics.py            # F1 против accuracy, F1 по стадиям и по людям
 ```
 
 Пересчитать признаки с нуля и рисунок 1 — нужен датасет (2.3 ГБ, в репозитории не хранится,
@@ -90,7 +92,11 @@ catboost, подбирает число процессов под ядра и п
   уровень пульса) поднимают ту же логистическую регрессию с AUC 0.853 до **0.916** — почти как LightGBM (0.919);
   для трёх классов κ растёт с 0.34 до 0.43. Качество ограничивают признаки, а не модель.
 
-Подробно — [docs/LOGREG_RU.md](docs/LOGREG_RU.md), данные — [docs/DATASET_RU.md](docs/DATASET_RU.md).
+- **F1-мера** (добавлена к метрикам статьи): модель «всегда сон» имеет accuracy 0.916 — выше любой настоящей модели —
+  но F1 бодрствования 0; у логистической регрессии F1 бодрствования 0.48 на признаках статьи и 0.55 на расширенных.
+  В Таблице 6 «лучшая accuracy» ≈ 0.70 для motion/HR достигается почти без REM: F1 REM = 0.
+
+Подробно — [docs/LOGREG_RU.md](docs/LOGREG_RU.md), F1 — [docs/F1_RU.md](docs/F1_RU.md), данные — [docs/DATASET_RU.md](docs/DATASET_RU.md).
 
 ## Гипотезы для второй половины проекта
 
