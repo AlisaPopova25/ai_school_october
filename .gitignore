@@ -6,8 +6,10 @@ __pycache__/
 .idea/
 *.part
 
-# Сырое ускорение (2.2 ГБ, файлы до 399 МБ) не помещается в git: python repro/download_data.py
-data/motion/*.txt
+# Датасет (2.3 ГБ) не храним в git — ссылка и скрипт загрузки в data/README.md
+data/**/*.txt
+data/*.txt
+!data/**/.gitkeep
 data/mesa/*
 !data/mesa/.gitkeep
 

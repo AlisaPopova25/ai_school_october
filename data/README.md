@@ -1,34 +1,45 @@
 # Данные
 
+Датасет в репозитории не хранится (2.3 ГБ, отдельные файлы до 399 МБ). Его нужно скачать по ссылке.
+
 **Motion and heart rate from a wrist-worn wearable and labeled sleep from polysomnography**, v1.0.0
-(Walch et al., 2019) — [PhysioNet: sleep-accel](https://physionet.org/content/sleep-accel/1.0.0/).
-Лицензия: Open Data Commons Attribution License v1.0 (`LICENSE.txt`). При использовании ссылайтесь на статью
-Walch O. et al., *SLEEP* 42(12), zsz180 (2019), doi:10.1093/sleep/zsz180, и на PhysioNet.
+(Walch et al., 2019): **https://physionet.org/content/sleep-accel/1.0.0/**
 
-31 испытуемый, одна ночь PSG у каждого. Время везде — секунды от начала записи PSG.
+Лицензия — Open Data Commons Attribution v1.0. При использовании ссылайтесь на статью Walch O. et al.,
+*SLEEP* 42(12), zsz180 (2019), doi:10.1093/sleep/zsz180, и на PhysioNet.
 
-| папка | содержимое | в репозитории |
-|---|---|---|
-| `labels/` | `<id>_labeled_sleep.txt`: `время стадия` по 30 с (−1 не размечено, 0 wake, 1–4 N1–N4, 5 REM) | да |
-| `heart_rate/` | `<id>_heartrate.txt`: `время,уд/мин`, PPG Apple Watch | да |
-| `steps/` | `<id>_steps.txt`: `время,шаги`, бины по 10 мин за неделю до ночи | да |
-| `motion/` | `<id>_acceleration.txt`: `время ax ay az` в g, ~50 Гц — **2.2 ГБ, файлы до 399 МБ** | **нет**, см. ниже |
-| `circadian_predictions/` | выход модели циркадных часов (`время,x,xc`), посчитан нашим кодом из `steps/` | да |
-| `mesa/` | данные MESA (NSRR, по заявке) | нет |
+## Как скачать
 
-## Как докачать ускорение
-
-GitHub не принимает файлы больше 100 МБ, поэтому `motion/` нужно скачать с PhysioNet:
+Скриптом, из корня репозитория:
 
 ```bash
 python repro/download_data.py
 ```
 
-Скрипт качает файлы параллельно, сверяет каждый с `SHA256SUMS.txt` и пропускает уже скачанные с верной суммой.
-Можно и вручную: архив на странице датасета → папку `motion` положить сюда.
+Он качает все 125 файлов параллельно, сверяет каждый с официальными SHA256 и раскладывает по папкам ниже.
+Уже скачанные файлы с верной суммой пропускаются, поэтому прерванную загрузку можно просто запустить заново.
 
-Без `motion/` работают все анализы на готовых признаках (`outputs/features/`, `outputs/repro/ext_features/`):
-скрипты `repro/02`–`06` и ноутбук после раздела 2. Ускорение нужно только для препроцессинга
-(`source/preprocessing/preprocessing_runner.py`) и `repro/01_explore_dataset.py`.
+Вручную: на странице датасета скачайте ZIP (~577 МБ), распакуйте и положите в эту папку `heart_rate/`, `labels/`,
+`motion/`, `steps/`, `LICENSE.txt`, `SHA256SUMS.txt`. Внутри архива бывает вложенная папка с тем же именем —
+брать нужно её содержимое.
+
+## Что где будет
+
+| папка | содержимое |
+|---|---|
+| `labels/` | `<id>_labeled_sleep.txt`: `время стадия` по 30 с (−1 не размечено, 0 wake, 1–4 N1–N4, 5 REM) |
+| `heart_rate/` | `<id>_heartrate.txt`: `время,уд/мин`, PPG Apple Watch |
+| `steps/` | `<id>_steps.txt`: `время,шаги`, бины по 10 мин за неделю до ночи |
+| `motion/` | `<id>_acceleration.txt`: `время ax ay az` в g, ~50 Гц (2.2 ГБ) |
+| `circadian_predictions/` | создаётся препроцессингом: выход модели циркадных часов по шагам |
+| `mesa/` | данные MESA (NSRR, по заявке) — не используются |
+
+31 испытуемый, одна ночь PSG у каждого; время везде — секунды от начала записи PSG.
+
+## Нужен ли датасет
+
+Нет, если запускаете только анализ: готовые признаки лежат в `outputs/features/` и `outputs/repro/ext_features/`,
+на них работают `repro/02`–`06` и ноутбук начиная с раздела 7. Датасет нужен для препроцессинга
+(`source/preprocessing/preprocessing_runner.py`), `repro/01_explore_dataset.py` и первых разделов ноутбука.
 
 Подробное описание данных и признаков — [docs/DATASET_RU.md](../docs/DATASET_RU.md).

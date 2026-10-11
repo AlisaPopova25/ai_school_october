@@ -16,7 +16,7 @@ wearable device*. SLEEP 42(12), zsz180 (2019). [doi:10.1093/sleep/zsz180](https:
 │   └── analysis/      классификаторы, кросс-валидация, рисунки и таблицы статьи (+ CatBoost)
 ├── repro/             наши скрипты: 01–06 анализ, sleeplib.py, ext_features.py, загрузка данных,
 │                      запуск CatBoost, пошаговый ноутбук walkthrough.ipynb
-├── data/              датасет PhysioNet sleep-accel без сырого ускорения (см. data/README.md)
+├── data/              сюда скачивается датасет PhysioNet sleep-accel (ссылка и скрипт — data/README.md)
 ├── outputs/           куда пишет код; в git — готовые признаки (outputs/features, outputs/repro/ext_features)
 ├── results/           снимок результатов: рисунки статьи, таблицы, наш анализ (см. results/README.md)
 ├── docs/              DATASET_RU.md — данные и признаки; LOGREG_RU.md — модель, результаты, вопросы к защите
@@ -47,10 +47,11 @@ python repro/04_improve_model.py         # расширенные признак
 python repro/06_quality_by_time.py       # качество по часам ночи
 ```
 
-Пересчитать признаки с нуля и рисунок 1 — нужно сырое ускорение (2.2 ГБ, в git не помещается):
+Пересчитать признаки с нуля и рисунок 1 — нужен датасет (2.3 ГБ, в репозитории не хранится,
+[PhysioNet sleep-accel](https://physionet.org/content/sleep-accel/1.0.0/)):
 
 ```bash
-python repro/download_data.py                          # докачивает data/motion с PhysioNet, сверяет SHA256
+python repro/download_data.py                          # скачивает датасет в data/, сверяет SHA256
 python source/preprocessing/preprocessing_runner.py    # ~3 мин
 ```
 
