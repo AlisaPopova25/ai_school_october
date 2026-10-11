@@ -1,0 +1,151 @@
+{
+  "best_params": {
+    "C": 0.001,
+    "penalty": "l2"
+  },
+  "equation": "logit P(sleep) = 0.211 -0.202*motion -0.445*hr +0.907*clock",
+  "coef_raw": {
+    "motion": -0.2024,
+    "hr": -0.4452,
+    "clock": 0.9072
+  },
+  "coef_per_SD": {
+    "motion": -1.4141,
+    "hr": -0.1447,
+    "clock": 0.2683
+  },
+  "odds_ratio_per_SD": {
+    "motion": 0.243,
+    "hr": 0.865,
+    "clock": 1.308
+  },
+  "feature_mean": {
+    "motion": 1.7762,
+    "hr": 0.3626,
+    "clock": 0.6843
+  },
+  "feature_sd": {
+    "motion": 6.988,
+    "hr": 0.3252,
+    "clock": 0.2957
+  },
+  "bootstrap_95ci": {
+    "intercept": [
+      0.0823,
+      0.3395
+    ],
+    "motion": [
+      -0.2471,
+      -0.1692
+    ],
+    "hr": [
+      -0.5641,
+      -0.2996
+    ],
+    "clock": [
+      0.6862,
+      1.1136
+    ]
+  },
+  "naive_se_iid": {
+    "intercept": 0.0314,
+    "motion": 0.0048,
+    "hr": 0.0407,
+    "clock": 0.0416
+  },
+  "bootstrap_se": {
+    "intercept": 0.0651,
+    "motion": 0.0202,
+    "hr": 0.0669,
+    "clock": 0.11
+  },
+  "loso": {
+    "auc": 0.8596050339247815,
+    "wake_correct@80": 0.8118029739776952,
+    "accuracy@80": 0.8009889721753464,
+    "kappa@80": 0.32222003098531493,
+    "wake_correct@90": 0.616635687732342,
+    "accuracy@90": 0.876064518660963,
+    "kappa@90": 0.3919660326098866,
+    "wake_correct@93": 0.512546468401487,
+    "accuracy@93": 0.8947451041952827,
+    "kappa@93": 0.394016321859742,
+    "wake_correct@95": 0.43633828996282525,
+    "accuracy@95": 0.9065970723284016,
+    "kappa@95": 0.39009939409581884
+  },
+  "linearity_variants": {
+    "LR статьи (сырые признаки, L1/L2+GridSearch)": {
+      "auc": 0.8596,
+      "wake_correct@90": 0.6166,
+      "kappa@90": 0.392,
+      "wake_correct@93": 0.5125
+    },
+    "LR + StandardScaler": {
+      "auc": 0.8533,
+      "wake_correct@90": 0.665,
+      "kappa@90": 0.4216,
+      "wake_correct@93": 0.5627
+    },
+    "LR + log1p(motion)": {
+      "auc": 0.8646,
+      "wake_correct@90": 0.6417,
+      "kappa@90": 0.4075,
+      "wake_correct@93": 0.5595
+    },
+    "LR + сплайны по каждому признаку (GAM-подобная)": {
+      "auc": 0.8804,
+      "wake_correct@90": 0.6933,
+      "kappa@90": 0.4386,
+      "wake_correct@93": 0.6227
+    }
+  },
+  "three_class_best_params": {
+    "C": 0.1,
+    "penalty": "l2"
+  },
+  "three_class_ovr_coef_raw": {
+    "wake": {
+      "motion": 0.1955,
+      "hr": 1.5511,
+      "clock": -2.9953
+    },
+    "nrem": {
+      "motion": -0.088,
+      "hr": -2.2942,
+      "clock": 0.3459
+    },
+    "rem": {
+      "motion": -0.1585,
+      "hr": 0.4149,
+      "clock": 2.4291
+    }
+  },
+  "three_class_ovr_intercepts": {
+    "wake": -0.1414,
+    "nrem": 0.1574,
+    "rem": -2.264
+  },
+  "three_class": {
+    "ovr_liblinear (как в статье)": {
+      "wake_fpr": 0.4,
+      "wake_correct": 0.599907063197026,
+      "nrem_correct": 0.6448366968351228,
+      "rem_correct": 0.6418772563176895,
+      "balanced_accuracy": 0.640398728464346,
+      "balanced_kappa": 0.337215769357186,
+      "best_accuracy": 0.6881990502727523,
+      "best_kappa": 0.17491967230111127
+    },
+    "multinomial (softmax)": {
+      "wake_fpr": 0.4,
+      "wake_correct": 0.599907063197026,
+      "nrem_correct": 0.6415200404744505,
+      "rem_correct": 0.6451263537906137,
+      "balanced_accuracy": 0.6387896864330286,
+      "balanced_kappa": 0.3356979656220884,
+      "best_accuracy": 0.6880028256347867,
+      "best_kappa": 0.17376856525553408
+    }
+  }
+}

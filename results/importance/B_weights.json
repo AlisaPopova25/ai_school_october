@@ -1,0 +1,50 @@
+{
+  "lr_sleep_vs_wake": {
+    "motion": -1.3693,
+    "hr": -0.6151,
+    "clock": 0.7883
+  },
+  "lr_intercept": 0.6174164013715312,
+  "lr_three_class": {
+    "wake": {
+      "motion": 0.9207,
+      "hr": 0.422,
+      "clock": -0.6449
+    },
+    "nrem": {
+      "motion": -0.215,
+      "hr": -0.5689,
+      "clock": 0.0932
+    },
+    "rem": {
+      "motion": -0.7057,
+      "hr": 0.1469,
+      "clock": 0.5517
+    }
+  },
+  "rf_mdi": {
+    "motion": 0.6063,
+    "hr": 0.102,
+    "clock": 0.2917
+  },
+  "lr_coef_loso_mean": {
+    "motion": -1.3696,
+    "hr": -0.6154,
+    "clock": 0.7885
+  },
+  "lr_coef_loso_std": {
+    "motion": 0.0261,
+    "hr": 0.0192,
+    "clock": 0.0244
+  },
+  "feature_means": {
+    "motion": 1.7762,
+    "hr": 0.3626,
+    "clock": 0.6843
+  },
+  "feature_stds": {
+    "motion": 6.988,
+    "hr": 0.3252,
+    "clock": 0.2957
+  }
+}
