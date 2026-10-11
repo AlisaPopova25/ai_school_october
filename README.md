@@ -15,9 +15,9 @@ wearable device*. SLEEP 42(12), zsz180 (2019). [doi:10.1093/sleep/zsz180](https:
 │   ├── preprocessing/ сырые сигналы → признаки motion, hr, clock (clock_proxy/ — наш Python-порт модели часов)
 │   └── analysis/      классификаторы, кросс-валидация, рисунки и таблицы статьи (+ CatBoost)
 ├── repro/             наши скрипты: 01–06 анализ, sleeplib.py, ext_features.py, загрузка данных,
-│                      запуск CatBoost, пошаговый ноутбук walkthrough.ipynb
-├── data/              сюда скачивается датасет PhysioNet sleep-accel (ссылка и скрипт — data/README.md)
-├── outputs/           куда пишет код; в git — готовые признаки (outputs/features, outputs/repro/ext_features)
+│                      обучение CatBoost (train_catboost.py), пошаговый ноутбук walkthrough.ipynb
+├── data/              только README: ссылка на датасет PhysioNet и как его скачать
+├── outputs/           готовые признаки (features, repro/ext_features); остальное код создаёт сам при запуске
 ├── results/           снимок результатов: рисунки статьи, таблицы, наш анализ (см. results/README.md)
 ├── docs/              DATASET_RU.md — данные и признаки; LOGREG_RU.md — модель, результаты, вопросы к защите
 ├── paper/             статья (PDF, CC BY-NC 4.0) и извлечённый текст
@@ -59,7 +59,11 @@ python source/preprocessing/preprocessing_runner.py    # ~3 мин
 `1`–`5` (переменные окружения берутся из `.env`; разделитель путей в нём виндовый `;`).
 
 Полезные переменные: `SLEEP_N_JOBS` — число процессов (каждый ~1.2 ГБ памяти), `SLEEP_INCLUDE_CATBOOST=0` —
-отключить CatBoost. Обучение CatBoost на мощной машине — `repro/run_catboost.ps1` / `repro/run_catboost.sh`.
+отключить CatBoost.
+
+**Обучение CatBoost** — `python repro/train_catboost.py` (или в VS Code конфигурация «6. Train CatBoost»): сам ставит
+catboost, подбирает число процессов под ядра и память и прогоняет рис. 2–4, S1–S4 и таблицы 2–6.
+`--dry-run` — только показать план; `--device GPU`; `--jobs 4 --sw-trials 20 --three-class-trials 10` — облегчённо для ноутбука.
 
 ## Ключевые результаты
 

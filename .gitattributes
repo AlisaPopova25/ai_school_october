@@ -4,5 +4,3 @@ outputs/** -text
 *.png binary
 *.npz binary
 *.pdf binary
-# Shell-скрипты всегда с LF, чтобы запускались на Linux/ВМ
-*.sh text eol=lf
