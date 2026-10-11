@@ -7,18 +7,13 @@ __pycache__/
 *.part
 
 # Датасет (2.3 ГБ) не храним в git — ссылка и скрипт загрузки в data/README.md
-data/**/*.txt
-data/*.txt
-!data/**/.gitkeep
-data/mesa/*
-!data/mesa/.gitkeep
+data/*
+!data/README.md
 
-# Промежуточные и пересчитываемые файлы (снимок результатов — в results/)
-outputs/cropped/*
-!outputs/cropped/.gitkeep
-outputs/figures/*
-!outputs/figures/.gitkeep
-outputs/logs/
-outputs/*.log
+# Всё, что пишет код при запуске (папки создаются сами; снимок результатов — в results/),
+# кроме готовых признаков, на которых анализ работает без датасета
+outputs/*
+!outputs/features/
+!outputs/repro/
 outputs/repro/*
 !outputs/repro/ext_features/

@@ -18,3 +18,8 @@ class Constants(object):
     FIGURE_FILE_PATH = utils.get_project_root().joinpath('outputs/figures/')
     LOWER_BOUND = -0.2
     MATLAB_PATH = '/Applications/MATLAB_R2019a.app/bin/matlab'  # Replace with your MATLAB path
+
+
+# Output folders are not kept in git (no empty placeholder folders): create them on first use
+for _path in (Constants.CROPPED_FILE_PATH, Constants.FEATURE_FILE_PATH, Constants.FIGURE_FILE_PATH):
+    _path.mkdir(parents=True, exist_ok=True)
