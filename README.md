@@ -18,7 +18,8 @@ wearable device*. SLEEP 42(12), zsz180 (2019). [doi:10.1093/sleep/zsz180](https:
 │                      обучение CatBoost (train_catboost.py), пошаговый ноутбук walkthrough.ipynb
 ├── data/              только README: ссылка на датасет PhysioNet и как его скачать
 ├── outputs/           готовые признаки (features, repro/ext_features); остальное код создаёт сам при запуске
-├── results/           снимок результатов: рисунки статьи, таблицы, наш анализ (см. results/README.md)
+├── results/           снимок результатов: рисунки статьи, таблицы, наш анализ (см. results/README.md);
+│                      ВСЕ таблицы одним читаемым файлом — results/RESULTS.md
 ├── docs/              DATASET_RU.md — данные и признаки; LOGREG_RU.md — модель, результаты, вопросы к защите;
 │                      F1_RU.md — F1-мера: что это и зачем
 ├── paper/             статья (PDF, CC BY-NC 4.0) и извлечённый текст
@@ -47,6 +48,7 @@ python repro/03_feature_importance.py    # важность признаков, 
 python repro/04_improve_model.py         # расширенные признаки, LightGBM, HMM
 python repro/06_quality_by_time.py       # качество по часам ночи
 python repro/07_f1_metrics.py            # F1 против accuracy, F1 по стадиям и по людям
+python repro/08_results_markdown.py      # собрать все таблицы в outputs/RESULTS.md (Markdown вместо LaTeX)
 ```
 
 Пересчитать признаки с нуля и рисунок 1 — нужен датасет (2.3 ГБ, в репозитории не хранится,

@@ -1,5 +1,7 @@
 # Результаты (снимок)
 
+**Все таблицы одним файлом, в Markdown вместо LaTeX — [RESULTS.md](RESULTS.md)** (собирается `python repro/08_results_markdown.py --snapshot`).
+
 Снимок результатов на октябрь 2026. При запуске код пишет свежие результаты в `outputs/` (картинки статьи —
 в `outputs/figures/`, наш анализ — в `outputs/repro/`); эта папка их не перезаписывает.
 

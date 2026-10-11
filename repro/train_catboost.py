@@ -23,7 +23,8 @@ VS Code: Run and Debug (Ctrl+Shift+D) → «6. Train CatBoost (CPU)» → F5.
      time_features  — clock / cosine / time (рис. S4)
    Каждая задача — отдельный процесс `python repro/02_run_original_analysis.py <задача> <разбиения> --only CatBoost`:
    ограничения потоков (OpenBLAS и др.) нужно задать ДО старта Python, поэтому задачи запускаются как дочерние процессы.
-5. Собирает общие картинки со всеми моделями (`02_run_original_analysis.py combine`).
+5. Собирает общие картинки со всеми моделями (`02_run_original_analysis.py combine`)
+   и все таблицы в читаемый outputs/RESULTS.md (`08_results_markdown.py`).
 
 Настройки (параметры модели, перебор, число разбиений) — ОДИН файл:
     source/analysis/classification/catboost_config.py
@@ -196,8 +197,10 @@ def main():
 
     print("\nСобираю общие картинки со всеми моделями...")
     subprocess.run([sys.executable, str(DRIVER), "combine"], cwd=ROOT, env=env, check=True)
-    print(f"\nГотово за {(time.time() - started) / 60:.1f} мин. Таблицы — outputs/logs/catboost_*.log, "
-          f"картинки — outputs/figures/CatBoost_*.png и outputs/figures/figure_*.png")
+    print("Собираю все таблицы в читаемый outputs/RESULTS.md...")
+    subprocess.run([sys.executable, str(ROOT / "repro" / "08_results_markdown.py")], cwd=ROOT, env=env, check=True)
+    print(f"\nГотово за {(time.time() - started) / 60:.1f} мин. Таблицы — outputs/RESULTS.md (Markdown) "
+          f"и outputs/logs/catboost_*.log (LaTeX), картинки — outputs/figures/CatBoost_*.png и figure_*.png")
 
 
 if __name__ == "__main__":
