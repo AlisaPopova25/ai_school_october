@@ -32,13 +32,19 @@ wearable device*. SLEEP 42(12), zsz180 (2019). [doi:10.1093/sleep/zsz180](https:
 **Всё одной командой** (обучить модели, построить рисунки и собрать все таблицы и графики в `outputs/RESULTS.md`):
 
 ```bash
-python repro/run_all.py            # все метрики статьи (табл. 1–6, рис. 2–7) + F1 для 4 моделей, вкл. нейросеть
-python repro/run_all.py --skip-nn  # без нейросети (быстрее)
-python repro/run_all.py --all      # плюс все остальные анализы проекта
-python repro/run_all.py --dry-run  # только показать план
+python repro/run_all.py                 # метрики статьи (табл. 1–6, рис. 2–7) + F1, AP, PPV и важность признаков
+                                        # по Шепли/SHAP: 4 модели статьи (вкл. нейросеть) + CatBoost
+python repro/run_all.py --skip-nn       # без нейросети (быстрее)
+python repro/run_all.py --skip-catboost # без CatBoost
+python repro/run_all.py --all           # плюс все остальные анализы проекта
+python repro/run_all.py --dry-run       # только показать план
+python repro/run_all.py --smoke         # проверка за пару минут: 6 человек, крошечные модели (outputs/repro/smoke/)
 ```
 
-В VS Code — конфигурации «0. RUN ALL…». Подробнее о шагах — в шапке `repro/run_all.py`.
+Во время обучения видны этап («этап 3/24: CatBoost | Motion, HR | сон/бодрствование»), прогресс-бар по фолдам,
+прошедшее и оставшееся время. Уже посчитанные предсказания берутся из `outputs/repro/paper_metrics/oof/` —
+повторный запуск обучает только недостающее. В VS Code — конфигурации «0. RUN ALL…». Подробнее — в шапке
+`repro/run_all.py`.
 
 Пошагово:
 

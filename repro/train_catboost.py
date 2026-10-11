@@ -106,22 +106,68 @@ def ensure_features(env, dry_run):
         subprocess.run(command, check=True, cwd=ROOT, env=env)
 
 
-def run_logged(command, env, log_path):
-    """Запускает команду, печатает её вывод (без построчного шума) и пишет в лог. Возвращает код выхода."""
+def run_logged(command, env, log_path, progress_total=None, progress_title=""):
+    """Запускает команду, показывает её вывод и прогресс, пишет всё в лог. Возвращает код выхода.
+
+    * Полосу, которую дочерний процесс присылает строками с маркером (repro/progress.py), рисует на месте.
+    * Если задан progress_total — считает строки «Completed data split» оригинального пайплайна
+      (по одной на обученное разбиение) и сам рисует по ним полосу с оценкой оставшегося времени.
+    """
+    from progress import MARK, MARK_DONE, Progress, bar_chars, safe_output, terminal_width
+
+    safe_output()
     log_path.parent.mkdir(parents=True, exist_ok=True)
+    import time as _time
+    bar = Progress(progress_total, progress_title) if progress_total else None
+    tty = sys.stdout.isatty()
+    last_shown = [0.0]
+
+    full, empty = bar_chars(sys.stdout)
+
+    def show_child_progress(text, final=False):
+        text = text.replace("█", full).replace("░", empty)  # дочерний процесс пишет в UTF-8, наш вывод — как получится
+        if tty:
+            cols = terminal_width()
+            sys.stdout.write("\r" + text[:cols].ljust(cols))
+        elif final or _time.time() - last_shown[0] >= 30:  # не в терминал: не чаще раза в 30 с
+            sys.stdout.write(text + "\n")
+            last_shown[0] = _time.time()
+        sys.stdout.flush()
+
+    def print_line(text):
+        if tty:
+            sys.stdout.write("\r" + " " * terminal_width() + "\r")
+        sys.stdout.write(text + "\n")
+        sys.stdout.flush()
+        if bar:
+            bar.show(force=True)
+
     with open(log_path, "w", encoding="utf-8") as log, subprocess.Popen(
             command, cwd=ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
             text=True, encoding="utf-8", errors="replace") as process:
         try:
-            for line in process.stdout:
-                if "Completed data split" in line:  # по строке на каждое разбиение — только в лог
-                    log.write(line)
-                    continue
-                print(line, end="", flush=True)
-                log.write(line)
+            for raw in process.stdout:
+                text = raw.rstrip("\r\n")
+                if text.startswith(MARK_DONE):  # итог полосы дочернего процесса: остаётся в выводе и в логе
+                    text = text[len(MARK_DONE):]
+                    show_child_progress(text, final=True)
+                    if tty:
+                        sys.stdout.write("\n")
+                    log.write(text + "\n")
+                elif text.startswith(MARK):  # промежуточное состояние полосы: только на экран
+                    show_child_progress(text[len(MARK):])
+                elif "Completed data split" in text:  # по строке на разбиение: в лог и в полосу
+                    log.write(text + "\n")
+                    if bar:
+                        bar.update()
+                else:
+                    print_line(text)
+                    log.write(text + "\n")
         except KeyboardInterrupt:
             process.terminate()
             raise
+    if bar:
+        bar.close()
     return process.returncode
 
 
@@ -139,6 +185,7 @@ def make_env(jobs, threads, device):
         "OPENBLAS_NUM_THREADS": "1",
         "OMP_NUM_THREADS": str(threads),
         "MKL_NUM_THREADS": "1",
+        "SLEEP_PROGRESS": "1",                   # дочерние скрипты шлют прогресс-бар родителю (repro/progress.py)
     })
     return env
 
@@ -186,11 +233,14 @@ def main():
         return
 
     started = time.time()
-    for task, n in plan:
+    for step, (task, n) in enumerate(plan, 1):
         log_path = LOGS / f"catboost_{task}.log"
-        print(f"\n=== {task}: {n} разбиений, лог -> {log_path.relative_to(ROOT)}")
+        print(f"\n=== этап {step}/{len(plan)}: {task} — {TASKS[task]}; {n} разбиений x 4 набора признаков, "
+              f"лог -> {log_path.relative_to(ROOT)}")
         t0 = time.time()
-        code = run_logged([sys.executable, str(DRIVER), task, str(n), "--only", "CatBoost"], env, log_path)
+        # прогресс: оригинальный пайплайн печатает «Completed data split» на каждое обученное разбиение
+        code = run_logged([sys.executable, str(DRIVER), task, str(n), "--only", "CatBoost"], env, log_path,
+                          progress_total=n * 4, progress_title=f"{task} {step}/{len(plan)}")
         if code != 0:
             sys.exit(f"{task} завершился с ошибкой (код {code}), подробности в {log_path}")
         print(f"=== {task} готово за {(time.time() - t0) / 60:.1f} мин")

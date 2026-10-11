@@ -3,6 +3,7 @@ numpy>=2.0
 scipy>=1.13
 pandas>=2.2
 scikit-learn>=1.6
+joblib>=1.4                # прогресс по фолдам (return_as=generator_unordered)
 matplotlib>=3.8
 seaborn>=0.13
 Pillow>=10.0
