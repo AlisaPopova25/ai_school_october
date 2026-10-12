@@ -500,9 +500,8 @@ def experiment_conclusions():
     bullets = Bullets([
         "**Лучше всего — исходные признаки + 3 быстрых:** κ 0.496 → 0.534, AUC 0.908 → 0.917. Быстрые признаки "
         "ловят короткие движения и учащение пульса, которые сглаженный motion «размазывает» по 10 минутам",
-        "**Помогают** соседние эпохи и статистики короткого окна: сон «липкий», контекст соседних минут подсказывает "
-        "стадию. **Не помогают** повтор примеров бодрствования (модель переобучается на редких примерах, AUC "
-        "падает) и разности соседних эпох без сглаживания (слишком шумные)",
+        "**Помогают** соседние эпохи и статистики короткого окна — контекст соседних минут. **Не помогают** "
+        "повтор примеров бодрствования (переобучение, AUC падает) и разности эпох без сглаживания (шум)",
         "**SHAP расширенной модели:** доля движения за минуту (|SHAP| 0.024) работает почти как motion (0.034); пик "
         "движения и относительный пульс слабее (0.009 и 0.005); время ночи остаётся самым сильным признаком (0.049)",
         "**Ограничение:** окно заглядывает на 15 с вперёд, а медиана пульса берётся по всей записи — это анализ "
@@ -510,7 +509,7 @@ def experiment_conclusions():
     picture = shap_fast_picture()
     if picture is None:
         return [Bullets(bullets.items[:2] + bullets.items[3:])]
-    return [Row(picture, [bullets], split=0.44)]
+    return [Row(picture, [bullets], split=0.42)]
 
 
 LEFT = [
@@ -616,21 +615,42 @@ LEFT = [
 
 
 def fast_results_blocks():
-    """Таблица «база против база + быстрые» из repro/10_fast_features.py, если её уже посчитали."""
+    """Таблица «без быстрых / с быстрыми признаками» из outputs/repro/fast_features/results.csv
+    (python repro/10_fast_features.py), если её уже посчитали."""
     import pandas as pd
     path = HERE.parent / "outputs" / "repro" / "fast_features" / "results.csv"
     if not path.exists():
         return [Para("Те же признаки добавлены к **CatBoost** и нейросети в общей постановке проекта "
                      "(motion, hr, clock; leave-one-subject-out): python repro/10_fast_features.py — после "
                      "запуска таблица появится здесь", SMALL)]
-    df = pd.read_csv(path)
-    rows = [[f"{r.model.replace('Neural Net', 'MLP')}: {r.feature_set.replace('Motion, HR, ', '')}",
-             f"{r.auc:.3f}", f"{r['kappa@90']:.3f}", f"{r['f1_wake@90']:.3f}", f"{r['kappa@0.5']:.3f}"]
-            for _, r in df.iterrows()]
-    return [Para("**Быстрые признаки в общей постановке проекта** (leave-one-subject-out, motion + hr + время "
-                 "ночи):", SMALL),
-            Table(["Модель: признаки", "AUC", "κ\n(90% сна)", "F1 wake\n(90% сна)", "κ\n(порог 0.5)"], rows,
-                  highlight_last=False)]
+    df = pd.read_csv(path).set_index(["model", "feature_set"])
+    cols = ["auc", "ap_wake", "wake_correct@90", "kappa@90", "f1_wake@90"]
+    rows = []
+    for model, label in [("CatBoost", "CatBoost"), ("Neural Net", "MLP")]:
+        for base in ["Clock", "Cosine"]:
+            key = (model, f"Motion, HR, {base}")
+            if key not in df.index:
+                continue
+            plain, fast = df.loc[key], df.loc[(model, f"Motion, HR, {base} + быстрые")]
+            rows.append([f"{label} · {base.lower()}"] + [f"{plain[c]:.3f}" for c in cols]
+                        + [f"{fast[c]:.3f}" for c in cols])
+    cb = df.loc[("CatBoost", "Motion, HR, Clock")], df.loc[("CatBoost", "Motion, HR, Clock + быстрые")]
+    head = ["Модель · время\nночи", "AUC", "AP\nwake", "Найдено\nwake", "κ", "F1\nwake",
+            "AUC", "AP\nwake", "Найдено\nwake", "κ", "F1\nwake"]
+    return [
+        Para("**Те же признаки на CatBoost и нейросети статьи** — общая постановка проекта: leave-one-subject-out, "
+             "порог найдёт 90% сна, время ночи — clock или cosine:", SMALL),
+        Table(head, rows, highlight_last=False,
+              groups=[("", 1), ("Без быстрых признаков", 5), ("С быстрыми признаками", 5)]),
+        Bullets([
+            f"**Быстрые признаки улучшают обе модели почти по всем метрикам.** CatBoost: AUC "
+            f"{cb[0]['auc']:.3f} → **{cb[1]['auc']:.3f}** — лучший результат проекта; найдено бодрствования "
+            f"{100 * cb[0]['wake_correct@90']:.0f}% → {100 * cb[1]['wake_correct@90']:.0f}%, AP wake "
+            f"{cb[0]['ap_wake']:.3f} → {cb[1]['ap_wake']:.3f}, κ {cb[0]['kappa@90']:.3f} → {cb[1]['kappa@90']:.3f}",
+            "Прирост — именно там, где модели слабы: в поиске бодрствования. С cosine вместо clock результаты "
+            "близкие (AP wake даже выше)",
+        ], size=SMALL),
+    ]
 
 
 RIGHT = [
@@ -649,7 +669,7 @@ RIGHT = [
             "**SHAP по эпохам** (вклад признака в P(сон) конкретной эпохи): покой → сон, движение → бодрствование, "
             "начало ночи → бодрствование, ровный пульс → немного к сну",
         ]),
-        Picture(ASSETS / "shapley_poster.png", width=0.86),
+        Picture(ASSETS / "shapley_poster.png", width=0.76),
     ]),
     Card("6. Улучшение модели: быстрые признаки", [
         Para("Эксперимент команды: нейросеть MLP (15, 15, 15), порог P(сон) ≥ 0.5, признаки motion, hr и время "
@@ -663,7 +683,7 @@ RIGHT = [
             "**f_HR** — средний пульс за минуту относительно медианы всей записи: +0.1 — на 10% выше обычного "
             "для этого человека, −0.05 — на 5% ниже",
         ]),
-        Picture(ASSETS / "experiments.png", width=0.74,
+        Picture(ASSETS / "experiments.png", width=0.64,
                 caption="Все варианты, которые пробовала команда: точка правее пунктира — лучше исходной модели"),
     ] + experiment_conclusions() + fast_results_blocks()),
 ]
@@ -675,8 +695,9 @@ CONCLUSIONS = Card("Выводы", [
              "бодрствования",
              "**Слабые места** — тихое бодрствование без движения и REM; accuracy это скрывает, поэтому нужны κ, F1 "
              "и AP",
-             "**Быстрые признаки** движения и пульса за 5 секунд — минуту поднимают κ нейросети с 0.496 до 0.534 и "
-             "AUC с 0.908 до 0.917; их проверка на CatBoost — в репозитории"], numbered=True),
+             "**Быстрые признаки** движения и пульса за 5 секунд — минуту улучшают все модели: нейросеть команды — "
+             "κ 0.496 → 0.534; CatBoost в общей постановке — AUC 0.880 → 0.890, лучший результат проекта"],
+            numbered=True),
 ])
 
 
