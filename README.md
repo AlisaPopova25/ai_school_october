@@ -64,7 +64,13 @@ python repro/run_all.py --skip-catboost # без CatBoost
 python repro/run_all.py --all           # плюс все остальные анализы проекта
 python repro/run_all.py --dry-run       # только показать план
 python repro/run_all.py --smoke         # проверка за пару минут: 6 человек, крошечные модели (outputs/repro/smoke/)
+python repro/10_fast_features.py        # только быстрые признаки команды: база против база + быстрые (CatBoost, MLP)
 ```
+
+**Быстрые признаки команды** (`repro/fast_features.py`): пик движения за эпоху, доля активных 5-секундных отрезков
+в минутном окне и относительный пульс за минуту. `run_all.py` сравнивает CatBoost и нейросеть на базовых признаках
+и на базовых + быстрых (время ночи — clock или cosine). Нужен датасет в `data/`: недостающие обрезанные данные
+скрипт подготовит сам. Результат — `outputs/repro/fast_features/results.md` и раздел в `outputs/RESULTS.md`.
 
 Во время обучения видны этап («этап 3/24: CatBoost | Motion, HR | сон/бодрствование»), прогресс-бар по фолдам,
 прошедшее и оставшееся время. Уже посчитанные предсказания берутся из `outputs/repro/paper_metrics/oof/` —

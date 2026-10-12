@@ -35,6 +35,8 @@ MODELS = ["Logistic Regression", "k-Nearest Neighbors", "Random Forest", "Neural
 STEPS = {
     "paper_metrics": ("все метрики статьи (табл. 1–6, рис. 2–7) + F1, AP, PPV и важность признаков по Шепли/SHAP: "
                       "4 модели статьи + CatBoost", None),
+    "fast_features": ("быстрые признаки команды (пик движения, доля активных отрезков, относительный пульс): "
+                      "база против база + быстрые для CatBoost и нейросети", None),
     "original_lr": ("оригинальный код статьи, логистическая регрессия (табл. 2, 6, рис. S4)",
                     [["repro/02_run_original_analysis.py", task, "--only", "Logistic Regression"]
                      for task in ("mc_sw", "mc_3class", "time_features")]),
@@ -47,8 +49,8 @@ STEPS = {
     "dataset": ("обзор датасета (нужна папка data/ с датасетом)", [["repro/01_explore_dataset.py"]]),
     "report": ("собрать всё в outputs/RESULTS.md", [["repro/08_results_markdown.py"]]),
 }
-DEFAULT_STEPS = ["paper_metrics", "report"]
-ALL_STEPS = ["paper_metrics", "original_lr", "importance", "improve", "logreg", "time_of_night", "f1", "dataset",
+DEFAULT_STEPS = ["paper_metrics", "fast_features", "report"]
+ALL_STEPS = ["paper_metrics", "fast_features", "original_lr", "importance", "improve", "logreg", "time_of_night", "f1", "dataset",
              "report"]
 
 
@@ -66,7 +68,7 @@ def main():
 
     steps = args.steps or (ALL_STEPS if args.all else DEFAULT_STEPS)
     if args.smoke:
-        steps = ["paper_metrics"]  # проверочный режим есть у шага метрик статьи; отчёт — в его папку
+        steps = ["paper_metrics", "fast_features"]  # у этих шагов есть проверочный режим; отчёт — в папку smoke
     steps = [s for s in ALL_STEPS if s in steps and s != "report"] + ["report"]  # порядок фиксирован, report — в конце
     if "dataset" in steps and not any((ROOT / "data" / "motion").glob("*_acceleration.txt")):
         print("шаг dataset пропущен: нет датасета в data/ (скачать: python repro/download_data.py)")
@@ -81,7 +83,7 @@ def main():
 
     models = [m for m in MODELS if not (args.skip_nn and m == "Neural Net")
               and not (args.skip_catboost and m == "CatBoost")]
-    if "paper_metrics" in steps and "CatBoost" in models:
+    if ("paper_metrics" in steps or "fast_features" in steps) and "CatBoost" in models:
         ensure_catboost(args.dry_run)  # ставит catboost, если его нет
     plan = []
     for step in steps:
@@ -89,6 +91,9 @@ def main():
         if step == "paper_metrics":
             commands = [["repro/09_paper_metrics.py", "--no-report", "--models", *models]
                         + (["--smoke"] if args.smoke else [])]
+        if step == "fast_features":
+            fast_models = [m for m in models if m in ("CatBoost", "Neural Net")]
+            commands = [["repro/10_fast_features.py", "--models", *fast_models] + (["--smoke"] if args.smoke else [])]
         if step == "report" and args.smoke:
             smoke_dir = str(ROOT / "outputs" / "repro" / "smoke")
             commands = [["repro/08_results_markdown.py", "--analysis-dir", smoke_dir,

@@ -634,6 +634,30 @@ def shapley_guide(out_path):
     return []
 
 
+def section_fast_features(adir):
+    out = ["## Быстрые признаки команды: база против база + быстрые",
+           "Три признака по 5-секундным отрезкам ускорения и пульсу (`repro/fast_features.py`): **пик движения за "
+           "эпоху** f_peak = ln(1 + max m_k / τ), **доля активных отрезков** в минутном окне [t − 15, t + 45) с, "
+           "**относительный пульс** за минуту (среднее − медиана записи) / медиана; m — корень из суммы дисперсий "
+           "ускорения по осям, τ = 0.02 g. Сравнение — LOSO, `repro/10_fast_features.py`. Время ночи в базе — clock "
+           "(как в статье) или cosine (как в эксперименте команды с MLP)."]
+    df = read_csv(adir / "fast_features" / "results.csv")
+    if df is None:
+        return out + ["_не посчитано: `python repro/10_fast_features.py` (или `python repro/run_all.py`)_"]
+    names = {"auc": "AUC", "ap_wake": "AP wake", "accuracy@90": "accuracy @90%", "wake_correct@90": "wake найден @90%",
+             "kappa@90": "κ @90%", "f1_wake@90": "F1 wake @90%", "f1_macro@90": "macro F1 @90%",
+             "accuracy@0.5": "accuracy @0.5", "kappa@0.5": "κ @0.5", "f1_wake@0.5": "F1 wake @0.5"}
+    cols = [c for c in names if c in df.columns]
+    frame = df[["model", "feature_set"] + cols].copy()
+    frame["model"] = frame.model.map(ru).where(~frame.model.duplicated(), "")
+    frame.columns = ["модель", "признаки"] + [names[c] for c in cols]
+    out += ["«@90%» — порог, при котором найдено 90% сна (как в статье); «@0.5» — порог P(сон) ≥ 0.5 (как в "
+            "эксперименте команды). **Жирным** — лучшее у модели.",
+            md_table(bolded(frame.assign(_g=df.model.values), [names[c] for c in cols], group="_g", drop=["_g"]),
+                     list(frame.columns))]
+    return out
+
+
 def section_shapley(adir, out_path):
     return section_shapley_tables(adir) + shapley_guide(out_path)
 
@@ -739,6 +763,7 @@ GALLERY = [  # (папка относительно результатов, фа
     ("paper_metrics", "fig_shap_mean_abs.png", "SHAP: mean |SHAP| и доля признаков, все модели"),
     ("paper_metrics", "fig_shap_beeswarm_models.png", "SHAP-значения по эпохам, все модели"),
     ("paper_metrics", "fig_shap_dependence_models.png", "SHAP dependence: как значение признака сдвигает P(сон)"),
+    ("fast_features", "fig_fast_features.png", "Быстрые признаки команды: база против база + быстрые"),
     ("paper_metrics", "fig2_roc_sleep_wake.png", "Рис. 2: ROC сон/бодрствование, все модели"),
     ("paper_metrics", "fig3_pr_wake.png", "Рис. 3: precision–recall для wake"),
     ("paper_metrics", "fig4_three_class.png", "Рис. 4: wake / NREM / REM"),
@@ -834,7 +859,7 @@ def main():
         tables_dir = Path(args.tables_dir)
     out_path = out_path if out_path.is_absolute() else ROOT / out_path
 
-    sections = [section_paper_metrics(analysis_dir), section_shapley(analysis_dir, out_path), section_paper(tables_dir), section_dataset(analysis_dir),
+    sections = [section_paper_metrics(analysis_dir), section_shapley(analysis_dir, out_path), section_fast_features(analysis_dir), section_paper(tables_dir), section_dataset(analysis_dir),
                 section_importance(analysis_dir), section_logreg(analysis_dir), section_improve(analysis_dir),
                 section_time(analysis_dir), section_f1(analysis_dir), section_gallery(analysis_dir, fig_dirs, out_path)]
     # единая нумерация разделов «## N. …» и содержание
