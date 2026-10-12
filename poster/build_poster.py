@@ -736,8 +736,7 @@ def main():
     layout_column(slide, right, X0 + COLW + COLGAP, COLW, Y_TOP, Y_BOTTOM)
     foot = add_textbox(slide, X0, Y_BOTTOM + 0.6, 2 * COLW + COLGAP, 2.4)
     fill_paragraph(foot.paragraphs[0], FOOTER_REFS, 17, MUTED, align=PP_ALIGN.CENTER)
-    fill_paragraph(foot.add_paragraph(), f"**Код и все результаты:** {REPO_URL}      AI360 · Проектная школа · 2026",
-                   19, MUTED, align=PP_ALIGN.CENTER)
+    fill_paragraph(foot.add_paragraph(), "AI360 · Проектная школа · 2026", 19, MUTED, align=PP_ALIGN.CENTER)
     try:
         prs.save(out)
     except PermissionError:  # файл открыт в PowerPoint: пишем рядом следующую свободную версию
