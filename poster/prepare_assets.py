@@ -190,19 +190,19 @@ def night_chart(subject="46343"):
     t = np.arange(len(data["stage"])) * 0.5 / 60
     hr = np.loadtxt(REPO_LOCAL / "data" / "heart_rate" / f"{subject}_heartrate.txt", delimiter=",")
     hr = hr[(hr[:, 0] >= 0) & (hr[:, 0] <= t[-1] * 3600 + 60)]
-    fig, axes = plt.subplots(3, 1, figsize=(14, 6.0), sharex=True, gridspec_kw=dict(height_ratios=[1, 1, 1.15]))
+    fig, axes = plt.subplots(3, 1, figsize=(11, 5.6), sharex=True, gridspec_kw=dict(height_ratios=[1, 1, 1.25]))
     axes[0].fill_between(t, data["motion"], color="#3b5b92", lw=0)
-    axes[0].set_ylabel("движение,\ncounts", fontsize=14)
-    axes[0].set_title("Движение: activity counts из ускорения часов (сглажено)", fontsize=14, loc="left")
+    axes[0].set_ylabel("движение,\ncounts", fontsize=16)
+    axes[0].set_title("Движение: activity counts из ускорения часов (сглажено)", fontsize=16, loc="left")
     axes[1].plot(hr[:, 0] / 3600, hr[:, 1], color="#d3494e", lw=1)
-    axes[1].set_ylabel("пульс,\nуд/мин", fontsize=14)
-    axes[1].set_title("Пульс с оптического датчика (PPG) Apple Watch", fontsize=14, loc="left")
+    axes[1].set_ylabel("пульс,\nуд/мин", fontsize=16)
+    axes[1].set_title("Пульс с оптического датчика (PPG) Apple Watch", fontsize=16, loc="left")
     order = {0: 4, 5: 3, 1: 2, 2: 1, 3: 0, 4: 0}
     axes[2].step(t, [order[int(v)] for v in data["stage"]], where="post", color="k", lw=1.2)
-    axes[2].set_yticks([0, 1, 2, 3, 4], ["N3", "N2", "N1", "REM", "Wake"], fontsize=12)
-    axes[2].set_xlabel("часы от начала записи PSG")
-    axes[2].set_ylabel("стадия", fontsize=14)
-    axes[2].set_title("Стадии сна по полисомнографии (PSG) — правильный ответ", fontsize=14, loc="left")
+    axes[2].set_yticks([0, 1, 2, 3, 4], ["N3", "N2", "N1", "REM", "Wake"], fontsize=14)
+    axes[2].set_xlabel("часы от начала записи PSG", fontsize=16)
+    axes[2].set_ylabel("стадия", fontsize=16)
+    axes[2].set_title("Стадии сна по PSG — правильный ответ", fontsize=16, loc="left")
     for ax in axes:
         ax.spines[["top", "right"]].set_visible(False)
         ax.grid(alpha=.25)
