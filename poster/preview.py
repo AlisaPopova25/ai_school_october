@@ -130,10 +130,15 @@ def main():
                 rh = px(row.height)
                 for c, cell in enumerate(row.cells):
                     cw = px(shape.table.columns[c].width)
+                    if cell._tc.get("hMerge"):  # продолжение объединённой ячейки: уже нарисована
+                        cx += cw
+                        continue
+                    span = int(cell._tc.get("gridSpan", 1))
+                    cw = sum(px(shape.table.columns[k].width) for k in range(c, c + span))
                     fill = color_of(cell.fill.fore_color, (255, 255, 255)) if cell.fill.type else (255, 255, 255)
                     draw.rectangle([cx, cy, cx + cw, cy + rh], fill=fill, outline=(200, 200, 210))
                     draw_text_frame(draw, cell.text_frame, cx, cy + rh * 0.2, cw, rh)
-                    cx += cw
+                    cx += px(shape.table.columns[c].width)
                 cy += rh
             continue
         sp = shape._element.spPr if hasattr(shape._element, "spPr") else None

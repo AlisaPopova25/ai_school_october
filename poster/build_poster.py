@@ -223,18 +223,21 @@ class Formulas:
 class Table:
     """Таблица: заголовки можно переносить через «\n» (каждая строка — отдельный абзац)."""
 
-    def __init__(self, header, rows, col_weights, size=17, head_size=15, highlight_last=True):
-        self.header, self.rows, self.weights = header, rows, col_weights
+    def __init__(self, header, rows, col_weights, size=17, head_size=15, highlight_last=True, groups=None):
+        self.header, self.rows, self.weights, self.groups = header, rows, col_weights, groups
         self.size, self.head_size, self.hl = size, head_size, highlight_last
         self.head_lines = max(h.count("\n") + 1 for h in header)
-        self.row_h = line_cm(size) + 0.3
-        self.head_h = self.head_lines * line_cm(head_size) + 0.5
+        self.row_h = line_cm(size) + 0.22
+        self.head_h = self.head_lines * line_cm(head_size) + 0.4
+        self.group_h = line_cm(head_size) + 0.25 if groups else 0.0
 
     def height(self, w):
-        return self.head_h + self.row_h * len(self.rows)
+        return self.group_h + self.head_h + self.row_h * len(self.rows)
 
     def draw(self, slide, x, y, w):
-        n_rows, n_cols = len(self.rows) + 1, len(self.header)
+        n_cols = len(self.header)
+        top = 1 if self.groups else 0
+        n_rows = len(self.rows) + 1 + top
         gf = slide.shapes.add_table(n_rows, n_cols, Emu(int(x * CM)), Emu(int(y * CM)), Emu(int(w * CM)),
                                     Emu(int(self.height(w) * CM)))
         table = gf.table
@@ -244,24 +247,42 @@ class Table:
         total = sum(self.weights)
         for j, wt in enumerate(self.weights):
             table.columns[j].width = Emu(int(w * wt / total * CM))
-        for i in range(n_rows):
-            table.rows[i].height = Emu(int((self.head_h if i == 0 else self.row_h) * CM))
+        if self.groups:  # строка групп: «Наш результат» / «Статья» над своими столбцами
+            table.rows[0].height = Emu(int(self.group_h * CM))
+            col = 0
+            for label, span in self.groups:
+                cell = table.cell(0, col)
+                if span > 1:
+                    cell.merge(table.cell(0, col + span - 1))
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = RGBColor(0x2E, 0x34, 0x73) if label else RGBColor(255, 255, 255)
+                cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+                cell.margin_top = cell.margin_bottom = Emu(int(0.05 * CM))
+                tf = cell.text_frame
+                tf.paragraphs[0].text = ""
+                if label:
+                    fill_paragraph(tf.paragraphs[0], label, self.head_size, RGBColor(255, 255, 255), bold_all=True,
+                                   align=PP_ALIGN.CENTER)
+                col += span
+        for i in range(top, n_rows):
+            r = i - top  # 0 — строка заголовков
+            table.rows[i].height = Emu(int((self.head_h if r == 0 else self.row_h) * CM))
             for j in range(n_cols):
                 cell = table.cell(i, j)
                 cell.margin_left = cell.margin_right = Emu(int(0.18 * CM))
                 cell.margin_top = cell.margin_bottom = Emu(int(0.08 * CM))
                 cell.vertical_anchor = MSO_ANCHOR.MIDDLE
-                text = self.header[j] if i == 0 else self.rows[i - 1][j]
+                text = self.header[j] if r == 0 else self.rows[r - 1][j]
                 last = self.hl and i == n_rows - 1
                 cell.fill.solid()
-                cell.fill.fore_color.rgb = ACCENT if i == 0 else (RGBColor(0xE3, 0xE5, 0xF4) if last else
-                                                                  (LIGHT if i % 2 == 0 else RGBColor(255, 255, 255)))
+                cell.fill.fore_color.rgb = ACCENT if r == 0 else (RGBColor(0xE3, 0xE5, 0xF4) if last else
+                                                                  (LIGHT if r % 2 == 0 else RGBColor(255, 255, 255)))
                 tf = cell.text_frame
                 tf.paragraphs[0].text = ""
                 for k, line in enumerate(text.split("\n")):
                     para = tf.paragraphs[0] if k == 0 else tf.add_paragraph()
-                    fill_paragraph(para, line, self.head_size if i == 0 else self.size,
-                                   RGBColor(255, 255, 255) if i == 0 else TEXT, bold_all=(i == 0 or last),
+                    fill_paragraph(para, line, self.head_size if r == 0 else self.size,
+                                   RGBColor(255, 255, 255) if r == 0 else TEXT, bold_all=(r == 0 or last),
                                    align=PP_ALIGN.LEFT if j == 0 else PP_ALIGN.CENTER)
         return self.height(w)
 
@@ -460,7 +481,7 @@ LEFT = [
                  "**Задача:** каждая эпоха 30 с — сон / бодрствование и бодрствование / NREM / REM",
                  "**Результат статьи:** 90% эпох верно (93% сна, 59.6% бодрствования); три класса — accuracy ≈ 72%; "
                  "проверка на 188 людях из MESA"]),
-        Picture(ASSETS / "night_poster.png", width=0.6,
+        Picture(ASSETS / "night_poster.png", width=0.52,
                 caption="Испытуемый 46343. Сверху вниз: движение (activity counts, усл. ед.), пульс (уд/мин), "
                         "стадии по PSG; по оси x — часы от начала записи"),
     ]),
@@ -485,26 +506,30 @@ LEFT = [
         Formulas(["kappa", "f1"], height=1.9, gap=3.5),
     ]),
     Card("4. Воспроизведение: совпало со статьёй", [
-        Para("**Сон / бодрствование** (motion + hr + clock, найдено 90% сна):", SMALL),
-        Table(["Модель", "AUC", "AUC\n(статья)", "Accuracy", "Найдено\nwake", "κ", "κ\n(статья)", "AP\nwake",
-               "F1\nwake", "Macro\nF1"],
-              [["Логистическая регрессия", "0.860", "0.854", "0.876", "0.617", "0.392", "0.347", "0.479", "0.457",
-                "0.693"],
-               ["k ближайших соседей", "0.867", "0.868", "0.880", "0.668", "0.424", "0.391", "0.502", "0.486",
-                "0.709"],
-               ["Случайный лес", "0.869", "0.871", "0.880", "0.660", "0.418", "0.405", "0.562", "0.481", "0.707"],
-               ["Нейросеть (MLP)", "0.877", "0.878", "0.881", "0.677", "0.429", "0.424", "0.560", "0.491", "0.712"],
-               ["CatBoost (наш)", "0.880", "—", "0.881", "0.680", "0.431", "—", "0.547", "0.492", "0.713"]],
-              [4.6, 1, 1.15, 1.25, 1.2, 1, 1.15, 1.05, 1.05, 1.1]),
-        Para("**Три класса** (найдено 60% бодрствования, порог уравнивает найденные NREM и REM):", SMALL),
-        Table(["Модель", "Найдено\nNREM", "NREM\n(статья)", "Найдено\nREM", "REM\n(статья)", "Accuracy", "κ",
-               "Macro\nF1", "F1\nREM"],
-              [["Логистическая регрессия", "0.645", "0.623", "0.642", "0.623", "0.640", "0.337", "0.572", "0.498"],
-               ["k ближайших соседей", "0.634", "0.648", "0.637", "0.647", "0.631", "0.323", "0.571", "0.481"],
-               ["Случайный лес", "0.633", "0.638", "0.631", "0.638", "0.630", "0.319", "0.566", "0.482"],
-               ["Нейросеть (MLP)", "0.643", "0.651", "0.641", "0.650", "0.639", "0.330", "0.583", "0.482"],
-               ["CatBoost (наш)", "0.649", "—", "0.654", "—", "0.646", "0.342", "0.586", "0.497"]],
-              [4.6, 1.2, 1.2, 1.2, 1.2, 1.2, 1, 1.1, 1.05]),
+        Para("**Сон / бодрствование** (motion + hr + clock; порог подобран так, чтобы найти 90% сна):", SMALL),
+        Table(["Модель", "AUC", "Accuracy", "Найдено\nwake", "κ", "AP\nwake", "F1\nwake", "Macro\nF1",
+               "AUC", "Найдено\nwake", "κ"],
+              [["Логистическая регрессия", "0.860", "0.876", "0.617", "0.392", "0.479", "0.457", "0.693",
+                "0.854", "0.556", "0.347"],
+               ["k ближайших соседей", "0.867", "0.880", "0.668", "0.424", "0.502", "0.486", "0.709",
+                "0.868", "0.627", "0.391"],
+               ["Случайный лес", "0.869", "0.880", "0.660", "0.418", "0.562", "0.481", "0.707",
+                "0.871", "0.653", "0.405"],
+               ["Нейросеть (MLP)", "0.877", "0.881", "0.677", "0.429", "0.560", "0.491", "0.712",
+                "0.878", "0.675", "0.424"],
+               ["CatBoost (наш)", "0.880", "0.881", "0.680", "0.431", "0.547", "0.492", "0.713", "—", "—", "—"]],
+              [4.3, 1, 1.25, 1.2, 1, 1.05, 1.05, 1.1, 1, 1.2, 1],
+              groups=[("", 1), ("Наш результат (leave-one-subject-out)", 7), ("Статья (Monte Carlo)", 3)]),
+        Para("**Три класса** (найдено 60% бодрствования; второй порог уравнивает найденные NREM и REM):", SMALL),
+        Table(["Модель", "Найдено\nNREM", "Найдено\nREM", "Accuracy", "κ", "Macro\nF1", "F1\nREM",
+               "Найдено\nNREM", "Найдено\nREM"],
+              [["Логистическая регрессия", "0.645", "0.642", "0.640", "0.337", "0.572", "0.498", "0.623", "0.623"],
+               ["k ближайших соседей", "0.634", "0.637", "0.631", "0.323", "0.571", "0.481", "0.648", "0.647"],
+               ["Случайный лес", "0.633", "0.631", "0.630", "0.319", "0.566", "0.482", "0.638", "0.638"],
+               ["Нейросеть (MLP)", "0.643", "0.641", "0.639", "0.330", "0.583", "0.482", "0.651", "0.650"],
+               ["CatBoost (наш)", "0.649", "0.654", "0.646", "0.342", "0.586", "0.497", "—", "—"]],
+              [4.3, 1.2, 1.2, 1.25, 1, 1.1, 1.05, 1.2, 1.2],
+              groups=[("", 1), ("Наш результат (leave-one-subject-out)", 6), ("Статья", 2)]),
         Bullets(["**AUC и доли стадий совпали со статьёй** (±0.01–0.02); CatBoost лучший, но отрыв в тысячных: "
                  "качество упирается в признаки",
                  "**Accuracy обманчива:** «всегда сон» даёт 0.916 > 0.88 у моделей (бодрствование — 8.4% эпох)",
