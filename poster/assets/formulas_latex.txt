@@ -1,0 +1,10 @@
+logreg: P(\mathrm{sleep}\mid x)=\sigma(w^\top x+b),\quad \sigma(z)=\frac{1}{1+e^{-z}}
+kappa: \kappa=\frac{p_o-p_e}{1-p_e}
+f1: F_1=\frac{2\cdot \mathrm{precision}\cdot \mathrm{recall}}{\mathrm{precision}+\mathrm{recall}}
+shapley: \phi_i=\sum_{S\subseteq N\setminus\{i\}}\frac{|S|!\,(|N|-|S|-1)!}{|N|!}\left[v(S\cup\{i\})-v(S)\right]
+shap: P(\mathrm{sleep}\mid x)=\mathbb{E}[f]+\phi_{\mathrm{motion}}+\phi_{\mathrm{hr}}+\phi_{\mathrm{clock}}
+clock: \mathrm{clock}(t)=\frac{x(t)-x(t_0)}{\min_t x(t)-x(t_0)}
+fpeak: f_{\mathrm{peak}}=\ln\left(1+\frac{\max_{k\in C} m_k}{\tau}\right)
+factive: f_{\mathrm{active}}=\frac{\sum_{k=1}^{12} A_k\,\mathbf{1}\{m_k\ge\tau\}}{\sum_{k=1}^{12} A_k}
+fhr: f_{\mathrm{HR}}=\frac{\bar h_{W_t}-h_{\mathrm{med}}}{h_{\mathrm{med}}}
+motion5: m=\sqrt{v_x+v_y+v_z}
