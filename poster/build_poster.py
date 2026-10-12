@@ -266,6 +266,33 @@ class Table:
         return self.height(w)
 
 
+class Row:
+    """Картинка (или любой блок) слева и колонка блоков справа."""
+
+    def __init__(self, left, right, split=0.45, gap=0.6):
+        self.left, self.right, self.split, self.gap = left, right, split, gap
+
+    def widths(self, w):
+        wl = (w - self.gap) * self.split
+        return wl, w - self.gap - wl
+
+    def right_h(self, wr):
+        return sum(b.height(wr) for b in self.right) + GAP * (len(self.right) - 1)
+
+    def height(self, w):
+        wl, wr = self.widths(w)
+        return max(self.left.height(wl), self.right_h(wr))
+
+    def draw(self, slide, x, y, w):
+        wl, wr = self.widths(w)
+        h = self.height(w)
+        self.left.draw(slide, x, y, wl)
+        cy = y + (h - self.right_h(wr)) / 2  # текст по центру высоты картинки
+        for b in self.right:
+            cy += b.draw(slide, x + wl + self.gap, cy, wr) + GAP
+        return h
+
+
 class Spacer:
     def __init__(self, h):
         self.h = h
@@ -393,17 +420,34 @@ FOOTER_REFS = ("[1] Walch O. et al. Sleep stage prediction with raw acceleration
 POSTER_TITLE = "Сон или бодрствование по Apple Watch: воспроизведение статьи, важность признаков и улучшение модели"
 REPO_URL = "github.com/AlisaPopova25/ai_school_october"
 
-def shap_fast_blocks():
-    """SHAP расширенного MLP (6 признаков): правая половина картинки команды assets/shap_fast.png."""
-    src = ASSETS / "shap_fast.png"
-    if not src.exists():
-        print("нет assets/shap_fast.png — карточка 6 без SHAP расширенной модели")
-        return []
-    im = Image.open(src).convert("RGB")
-    right = im.crop((int(im.width * 0.5), int(im.height * 0.12), im.width, im.height))
-    right.save(ASSETS / "_shap_fast_right.png")
-    return [Picture(ASSETS / "_shap_fast_right.png", width=0.55,
-                    caption="SHAP расширенного MLP: быстрые признаки добавляют свой вклад к motion, hr и времени ночи")]
+def shap_fast_picture():
+    """SHAP расширенного MLP (6 признаков) от команды: assets/shap_fast_right.png (одна панель) или правая
+    половина assets/shap_fast.png (две панели рядом). Нет картинки — None."""
+    if (ASSETS / "shap_fast_right.png").exists():
+        path = ASSETS / "shap_fast_right.png"
+    elif (ASSETS / "shap_fast.png").exists():
+        im = Image.open(ASSETS / "shap_fast.png").convert("RGB")
+        path = ASSETS / "_shap_fast_right.png"
+        im.crop((int(im.width * 0.5), int(im.height * 0.12), im.width, im.height)).save(path)
+    else:
+        print("нет assets/shap_fast_right.png — карточка 6 без SHAP расширенной модели")
+        return None
+    return Picture(path, caption="SHAP расширенного MLP (график команды)")
+
+
+def experiment_conclusions():
+    bullets = Bullets(["**Лучше всего — исходные + 3 быстрых признака:** κ 0.496 → 0.534, AUC 0.908 → 0.917",
+                       "Помогают соседние эпохи и окно; повтор примеров бодрствования и признаки без "
+                       "сглаживания — нет",
+                       "**SHAP:** «доля движения за минуту» (|SHAP| 0.024) работает почти как motion (0.034), "
+                       "пик движения и относительный пульс — слабее (0.009 и 0.005); время ночи остаётся "
+                       "самым сильным признаком (0.049)",
+                       "Окно заглядывает на 15 с вперёд, медиана пульса — по всей записи: это анализ готовой "
+                       "записи, а не онлайн-предсказание"])
+    picture = shap_fast_picture()
+    if picture is None:
+        return [Bullets(bullets.items[:2] + bullets.items[3:])]
+    return [Row(picture, [bullets], split=0.46)]
 
 
 LEFT = [
@@ -498,7 +542,7 @@ RIGHT = [
         Picture(ASSETS / "shapley_poster.png", width=0.88),
     ]),
     Card("6. Улучшение модели: быстрые признаки", [
-        Para("Эксперимент команды: MLP (15, 15, 15), порог P(сон) ≥ 0.5, признаки motion, hr и **cosine**. "
+        Para("Эксперимент команды: MLP (15, 15, 15), порог P(сон) ≥ 0.5, признаки motion, hr и время ночи. "
              "Добавили 3 «быстрых» признака по 5-секундным отрезкам: m — корень из суммы дисперсий ускорения по "
              "осям, τ = 0.02 g, окно W = [t − 15, t + 45) с"),
         Formulas(["fpeak", "factive", "fhr"], height=2.3, gap=2.0),
@@ -506,10 +550,7 @@ RIGHT = [
                  "**f_active** — как часто двигались в течение минуты: доля 5-секундных отрезков с m ≥ τ",
                  "**f_HR** — пульс за минуту относительно медианы записи: +0.1 — на 10% выше обычного"]),
         Picture(ASSETS / "experiments.png", width=0.82),
-        Bullets(["**Лучше всего — исходные + 3 быстрых признака:** κ 0.496 → 0.534, AUC 0.908 → 0.917",
-                 "Помогают соседние эпохи и окно; повтор примеров бодрствования и признаки без сглаживания — нет",
-                 "Окно заглядывает на 15 с вперёд, медиана пульса — по всей записи: это анализ готовой записи"]),
-    ] + fast_results_blocks() + shap_fast_blocks()),
+    ] + experiment_conclusions() + fast_results_blocks()),
 ]
 
 CONCLUSIONS = Card("Выводы", [
