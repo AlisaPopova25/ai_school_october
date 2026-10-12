@@ -1,0 +1,3 @@
+model,feature_set,auc,ap_wake,accuracy@90,wake_correct@90,kappa@90,f1_wake@90,f1_macro@90,accuracy@0.5,wake_correct@0.5,kappa@0.5,f1_wake@0.5
+CatBoost,"Motion, HR, Clock",0.8799,0.5466,0.8814,0.6803,0.4308,0.4922,0.7125,0.8326,0.7612,0.3568,0.4344
+CatBoost,"Motion, HR, Clock + быстрые",0.8896,0.5852,0.8839,0.7086,0.4477,0.5076,0.7209,0.8513,0.7519,0.3891,0.4607

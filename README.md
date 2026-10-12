@@ -31,10 +31,12 @@ wearable device*. SLEEP 42(12), zsz180 (2019). [doi:10.1093/sleep/zsz180](https:
 
 ## Последние результаты
 
-**[CatBoost с тремя дополнительными признаками](results/catboost_fast_features/README.md)** —
-сравнение исходных и расширенных наборов, 31 разбиение leave-one-subject-out,
-таблицы и четыре финальные модели в формате `.cbm`. Порядок входных признаков
-указан в JSON рядом с каждой моделью. Сохранение весов: `python repro/save_fast_catboost.py`.
+**[Улучшенный CatBoost с clock proxy](results/catboost_clock_proxy/README.md)** —
+исходные признаки против исходных + трёх быстрых, 31 разбиение leave-one-subject-out.
+Средние по участникам: AUC 0.912 → 0.922, κ 0.377 → 0.409.
+Веса улучшенной и базовой модели в формате `.cbm`, порядок входов и параметры в JSON,
+[автономный ноутбук с анализом](results/catboost_clock_proxy/catboost_clock_analysis.ipynb).
+Повторное обучение только с Clock: `python repro/10_fast_features.py --models CatBoost --base Clock`.
 
 **[results/run_2026-10-11/explained.ipynb](results/run_2026-10-11/explained.ipynb)** — прогон `run_all.py`
 (четыре модели статьи и CatBoost: все метрики, важность признаков по Шепли) и эксперименты с признаками

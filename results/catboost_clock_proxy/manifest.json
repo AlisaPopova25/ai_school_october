@@ -1,0 +1,86 @@
+{
+  "task": "sleep/wake",
+  "participants": [
+    "3509524",
+    "5132496",
+    "1066528",
+    "5498603",
+    "2638030",
+    "2598705",
+    "5383425",
+    "1455390",
+    "4018081",
+    "9961348",
+    "1449548",
+    "8258170",
+    "781756",
+    "9106476",
+    "8686948",
+    "8530312",
+    "3997827",
+    "4314139",
+    "1818471",
+    "4426783",
+    "8173033",
+    "7749105",
+    "5797046",
+    "759667",
+    "8000685",
+    "6220552",
+    "844359",
+    "9618981",
+    "1360686",
+    "46343",
+    "8692923"
+  ],
+  "threshold": 0.5,
+  "protocol": "31-fold leave-one-subject-out; no test participant in training",
+  "catboost_version": "1.2.10",
+  "params": {
+    "iterations": 100,
+    "learning_rate": 0.1,
+    "depth": 4,
+    "l2_leaf_reg": 3.0,
+    "early_stopping_rounds": null,
+    "refit_on_full": false,
+    "random_seed": 0
+  },
+  "class_weight": "balanced",
+  "config_fast": true,
+  "epochs": 25481,
+  "feature_sets": {
+    "Motion, HR, Clock": [
+      "motion",
+      "hr",
+      "clock"
+    ],
+    "Motion, HR, Clock + быстрые": [
+      "motion",
+      "hr",
+      "clock",
+      "peak",
+      "active",
+      "hr_rel"
+    ]
+  },
+  "epoch_metrics": "Pooled across all held-out epochs",
+  "participant_metrics": "Unweighted mean across participants",
+  "sensitivity_90_metrics": "Descriptive operating point selected using test labels, not a deployed threshold",
+  "code_sha256": {
+    "repro/10_fast_features.py": "ff7a4121d7f63a4e97c6be841c8afad40ca87ea151d9ccc9f4782e3a18d2d87d",
+    "repro/fast_features.py": "a396747de666f526d8717628eeb94a2d2ca88d350999e3bfcaf8ead1c3e7467d",
+    "additional_sleep_features/additional_sleep_features.py": "53cdefc88036f5704f64b3d706ede4b657db899237773365287395fb2f32f4da",
+    "source/analysis/classification/catboost_config.py": "e87e569d951c0bba29799f7633d500d514d684be233a91433d7405b86c37db12"
+  },
+  "models": {
+    "catboost_clock_base": "d63a4604571d43b4d13c5d3239171011695daed666b13dc29ae1baac7d449011",
+    "catboost_clock_fast": "0bf0f411ab548365359453babbff14cbb7ba4b8fa927c296be1fea39a1dada2b"
+  },
+  "oof_sha256": {
+    "Motion, HR, Clock": "6019b9d1d0e8f8159d68eb6c7bc692a19533e30a5aa1f2f534176deea5a5f38c",
+    "Motion, HR, Clock + быстрые": "5e5ee989f5fd1ebaad5e296c42a37e7b5157d751ed430e90dc3e3ebadec35339"
+  },
+  "time_feature": "clock_proxy",
+  "publication": "Existing trained weights and held-out predictions; no retraining or relabelling.",
+  "published_predictions_sha256": "53b4c8ddae9ec1e5cf53222468243c4a613450350c0832351ceb43080da833dc"
+}

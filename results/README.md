@@ -1,5 +1,12 @@
 # Результаты (снимок)
 
+## Улучшенный CatBoost с clock proxy
+
+[Веса, параметры и описание](catboost_clock_proxy/README.md) ·
+[Ноутбук с готовыми результатами](catboost_clock_proxy/catboost_clock_analysis.ipynb).
+Исходные признаки против исходных + трёх быстрых; средние по 31 участнику:
+AUC **0.912 → 0.922**, Cohen κ **0.377 → 0.409**. Проверка — leave-one-subject-out.
+
 **Все таблицы одним файлом, в Markdown вместо LaTeX — [RESULTS.md](RESULTS.md)** (собирается `python repro/08_results_markdown.py --snapshot`).
 
 Снимок результатов на октябрь 2026. При запуске код пишет свежие результаты в `outputs/` (картинки статьи —
