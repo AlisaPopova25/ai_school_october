@@ -38,6 +38,22 @@ wearable device*. SLEEP 42(12), zsz180 (2019). [doi:10.1093/sleep/zsz180](https:
 
 ## Быстрый старт
 
+### Три дополнительных признака MLP
+
+Самостоятельный модуль: [additional_sleep_features/additional_sleep_features.py](additional_sleep_features/additional_sleep_features.py).
+Он рассчитывает пик движения за эпоху, долю активных пятисекундных отрезков за минуту
+и относительный уровень пульса. Требуется только NumPy; разметка сна и веса модели не нужны.
+Форматы входных файлов, формулы и пример импорта описаны в
+[инструкции](additional_sleep_features/README.md).
+
+```bash
+python additional_sleep_features/additional_sleep_features.py --motion motion.csv --heart-rate hr.csv --epochs epochs.csv --output additional_features.csv
+```
+
+Временные метки всех файлов должны быть в секундах с общим началом отсчёта,
+ускорение — в g, пульс — в bpm. Минутные окна и медиана пульса используют
+будущие измерения, поэтому модуль предназначен для обработки готовой записи.
+
 **Всё одной командой** (обучить модели, построить рисунки и собрать все таблицы и графики в `outputs/RESULTS.md`):
 
 ```bash
