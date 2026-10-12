@@ -568,7 +568,7 @@ LEFT = [
         ]),
         Formulas(["clock"], height=1.9),
         Para("x — состояние модели внутренних часов (без единиц). Шкала перевёрнута: clock = 0 — человек лёг, "
-             "1 — дно суточного ритма (≈ 4 ч ночи, минимум x); под утро clock снова уменьшается", SMALL, MUTED,
+             "1 — дно суточного ритма (минимум x, у каждого в своё время); под утро clock снова уменьшается", SMALL, MUTED,
              PP_ALIGN.CENTER),
     ]),
     Card("3. Модели, проверка и метрики", [
@@ -641,8 +641,8 @@ def fast_results_blocks():
     df = pd.read_csv(path).set_index(["model", "feature_set"])
     cols = ["auc", "ap_wake", "wake_correct@90", "kappa@90", "f1_wake@90"]
     rows = []
-    for model, label in [("CatBoost", "CatBoost"), ("Neural Net", "MLP")]:
-        for base in ["Clock", "Cosine"]:
+    for model, label in [("CatBoost", "CatBoost")]:  # на плакате — только CatBoost с clock
+        for base in ["Clock"]:
             key = (model, f"Motion, HR, {base}")
             if key not in df.index:
                 continue
@@ -650,15 +650,15 @@ def fast_results_blocks():
             rows.append([f"{label} · {base.lower()}"] + [f"{plain[c]:.3f}" for c in cols]
                         + [f"{fast[c]:.3f}" for c in cols])
     cb = df.loc[("CatBoost", "Motion, HR, Clock")], df.loc[("CatBoost", "Motion, HR, Clock + быстрые")]
-    head = ["Модель · время\nночи", "AUC", "AP\nwake", "Найдено\nwake", "κ", "F1\nwake",
+    head = ["Модель", "AUC", "AP\nwake", "Найдено\nwake", "κ", "F1\nwake",
             "AUC", "AP\nwake", "Найдено\nwake", "κ", "F1\nwake"]
     return [
-        Para("**Те же признаки на CatBoost и нейросети статьи** — общая постановка проекта: leave-one-subject-out, "
-             "порог найдёт 90% сна, время ночи — clock или cosine:", SMALL),
+        Para("**Те же признаки на CatBoost** — общая постановка проекта: leave-one-subject-out, признаки motion + hr + "
+             "clock, порог найдёт 90% сна:", SMALL),
         Table(head, rows, highlight_last=False,
               groups=[("", 1), ("Без быстрых признаков", 5), ("С быстрыми признаками", 5)]),
         Bullets([
-            f"**Быстрые признаки улучшают обе модели почти по всем метрикам.** CatBoost: AUC "
+            f"**Быстрые признаки улучшают CatBoost по всем метрикам:** AUC "
             f"{cb[0]['auc']:.3f} → **{cb[1]['auc']:.3f}** — лучший результат проекта; найдено бодрствования "
             f"{100 * cb[0]['wake_correct@90']:.0f}% → {100 * cb[1]['wake_correct@90']:.0f}%, AP wake "
             f"{cb[0]['ap_wake']:.3f} → {cb[1]['ap_wake']:.3f}, κ {cb[0]['kappa@90']:.3f} → {cb[1]['kappa@90']:.3f}",
@@ -682,7 +682,7 @@ RIGHT = [
             "**SHAP по эпохам** (вклад признака в P(сон) конкретной эпохи): покой → сон, движение → бодрствование, "
             "начало ночи → бодрствование, ровный пульс → немного к сну",
         ]),
-        Picture(ASSETS / "shapley_poster.png", width=0.72),
+        Picture(ASSETS / "shapley_poster.png", width=0.82),
     ]),
     Card("6. Улучшение модели: быстрые признаки", [  # текст и раскладка — из правок команды в PowerPoint
         Para("Эксперимент команды MLP: исследованы соседние эпохи, статистики и изменения сигналов, балансировка "
@@ -690,7 +690,7 @@ RIGHT = [
         Para("Лучший результат дало добавление трёх локальных признаков движения и пульса:"),
         Para("Cohen’s κ выросла с 0,496 до 0,534, ROC AUC — с 0,908 до 0,917 при проверке с разделением по "
              "участникам."),
-        Picture(ASSETS / "experiments.png", width=0.68),
+        Picture(ASSETS / "experiments.png", width=0.78),
     ] + team_shap_row() + fast_results_blocks()),
 ]
 
