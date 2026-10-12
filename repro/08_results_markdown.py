@@ -612,21 +612,30 @@ SHAPLEY_METRICS_RU = {"accuracy": "accuracy", "auc": "AUC", "ap_wake": "AP wake"
                       "f1_macro": "macro F1"}
 
 
-def shapley_guide():
-    """Текст «Как читать графики Шепли и SHAP» (docs/SHAPLEY_RU.md или repro/SHAPLEY_RU.md) — без картинок,
-    заголовки на уровень ниже, чтобы встать внутрь раздела отчёта."""
+def shapley_guide(out_path):
+    """Текст «Как читать графики Шепли и SHAP» (docs/SHAPLEY_RU.md или repro/SHAPLEY_RU.md): заголовки на уровень
+    ниже, чтобы встать внутрь раздела отчёта; пути картинок пересчитаны от отчёта, несуществующие картинки убраны."""
+    import os
     for path in (ROOT / "docs" / "SHAPLEY_RU.md", ROOT / "repro" / "SHAPLEY_RU.md"):
-        if path.exists():
-            lines = path.read_text(encoding="utf-8").splitlines()
-            body = [("#" + line if line.startswith("#") else line) for line in lines[1:] if not line.startswith("![")]
-            rel = path.relative_to(ROOT).as_posix()
-            return [f"### Как читать графики Шепли и SHAP\n\n_то же самое — в `{rel}`_\n\n" + "\n".join(body).strip()]
+        if not path.exists():
+            continue
+        body = []
+        for line in path.read_text(encoding="utf-8").splitlines()[1:]:
+            image = re.match(r"!\[(.*?)\]\((.*?)\)", line)
+            if image:
+                target = (path.parent / image.group(2)).resolve()
+                if not target.exists():
+                    continue
+                line = f"![{image.group(1)}]({Path(os.path.relpath(target, out_path.parent)).as_posix()})"
+            body.append("#" + line if line.startswith("#") else line)
+        rel = path.relative_to(ROOT).as_posix()
+        return [f"### Как читать графики Шепли и SHAP\n\n_то же самое — в `{rel}`; картинки с пояснениями: "
+                "`python repro/make_shapley_guide.py`_\n\n" + "\n".join(body).strip()]
     return []
 
 
-def section_shapley(adir):
-    out = section_shapley_tables(adir)
-    return out + shapley_guide()
+def section_shapley(adir, out_path):
+    return section_shapley_tables(adir) + shapley_guide(out_path)
 
 
 def section_shapley_tables(adir):
@@ -825,7 +834,7 @@ def main():
         tables_dir = Path(args.tables_dir)
     out_path = out_path if out_path.is_absolute() else ROOT / out_path
 
-    sections = [section_paper_metrics(analysis_dir), section_shapley(analysis_dir), section_paper(tables_dir), section_dataset(analysis_dir),
+    sections = [section_paper_metrics(analysis_dir), section_shapley(analysis_dir, out_path), section_paper(tables_dir), section_dataset(analysis_dir),
                 section_importance(analysis_dir), section_logreg(analysis_dir), section_improve(analysis_dir),
                 section_time(analysis_dir), section_f1(analysis_dir), section_gallery(analysis_dir, fig_dirs, out_path)]
     # единая нумерация разделов «## N. …» и содержание

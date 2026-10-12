@@ -38,7 +38,8 @@ STEPS = {
     "original_lr": ("оригинальный код статьи, логистическая регрессия (табл. 2, 6, рис. S4)",
                     [["repro/02_run_original_analysis.py", task, "--only", "Logistic Regression"]
                      for task in ("mc_sw", "mc_3class", "time_features")]),
-    "importance": ("важность признаков: Шепли, веса, permutation, SHAP", [["repro/03_feature_importance.py"]]),
+    "importance": ("важность признаков: Шепли, веса, permutation, SHAP + картинки с пояснениями",
+                   [["repro/03_feature_importance.py"], ["repro/make_shapley_guide.py"]]),
     "improve": ("расширенные признаки, LightGBM, HMM", [["repro/04_improve_model.py"]]),
     "logreg": ("логистическая регрессия: коэффициенты, интервалы, калибровка", [["repro/05_logreg_deep_dive.py"]]),
     "time_of_night": ("качество по часам ночи", [["repro/06_quality_by_time.py"]]),
@@ -105,9 +106,10 @@ def main():
 
     started = time.time()
     for i, (step, commands) in enumerate(plan, 1):
-        for command in commands:
-            suffix = f" {command[1]}" if step == "original_lr" else ""
-            log = ROOT / "outputs" / "logs" / (f"lr_{command[1]}.log" if step == "original_lr" else f"run_all_{step}.log")
+        for k, command in enumerate(commands, 1):
+            suffix = f" {command[1]}" if step == "original_lr" else (f" ({k}/{len(commands)})" if len(commands) > 1 else "")
+            name = f"run_all_{step}_{k}.log" if len(commands) > 1 else f"run_all_{step}.log"
+            log = ROOT / "outputs" / "logs" / (f"lr_{command[1]}.log" if step == "original_lr" else name)
             print(f"\n=== этап {i}/{len(plan)}: {step}{suffix} — {STEPS[step][0]} "
                   f"(прошло {fmt_time(time.time() - started)}, лог: {log.relative_to(ROOT)})", flush=True)
             t0 = time.time()
