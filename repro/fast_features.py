@@ -10,7 +10,9 @@
 τ = 0.02 g. Признаки считаются по обрезанным сырым данным (outputs/cropped/) для тех же валидных эпох, что и
 признаки статьи (RawDataProcessor.get_valid_epochs), поэтому строки совпадают с outputs/features/ один в один.
 Окно W_t заглядывает на 15 с в будущее, а медиана пульса берётся по всей записи — это анализ готовой записи,
-а не онлайн-предсказание. Нет данных в окне: f_peak = 0, f_active = 0, f_hr = 0 (уровень медианы).
+а не онлайн-предсказание. Считает эталонная функция команды make_fast_features из
+additional_sleep_features/additional_sleep_features.py (окна обрезаются по непрерывному блоку эпох); если её нет
+или в окне нет данных — своя реализация ниже (нет данных: f_peak = 0, f_active = 0, f_hr = 0).
 
 Кэш: outputs/repro/fast_features/<id>.npz. Запуск отдельно (считает и кэширует для всех):
     python repro/fast_features.py
@@ -50,10 +52,38 @@ def segment_motion(acc, origin):
     return m, available
 
 
+def team_make_fast_features():
+    """Эталонная функция команды: additional_sleep_features/additional_sleep_features.py (Ян Мусатов)."""
+    import importlib.util
+    path = ROOT / "additional_sleep_features" / "additional_sleep_features.py"
+    if not path.exists():
+        return None
+    spec = importlib.util.spec_from_file_location("additional_sleep_features", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.make_fast_features
+
+
 def compute(subject):
+    """Признаки по эталонной функции команды; если её нет — по собственной реализации ниже."""
     from source.preprocessing.raw_data_processor import RawDataProcessor
 
     epochs = [e.timestamp for e in RawDataProcessor.get_valid_epochs(subject)]
+    make = team_make_fast_features()
+    if make is not None:
+        acc = np.loadtxt(CROPPED / f"{subject}_cleaned_motion.out")
+        hr = np.loadtxt(CROPPED / f"{subject}_cleaned_hr.out")
+        acc, hr = acc[np.argsort(acc[:, 0], kind="stable")], hr[np.argsort(hr[:, 0], kind="stable")]
+        try:
+            feats, _ = make(acc, hr, np.array(epochs, dtype=float), TAU)
+            return {"peak": feats[:, 0], "active": feats[:, 1], "hr_rel": feats[:, 2],
+                    "epoch_timestamp": np.array(epochs)}
+        except ValueError as error:  # нет данных в каком-то окне: считаем своей реализацией (там 0)
+            print(f"{subject}: эталонная функция команды не справилась ({error}) — своя реализация")
+    return compute_own(subject, epochs)
+
+
+def compute_own(subject, epochs):
     psg = np.loadtxt(CROPPED / f"{subject}_cleaned_psg.out")
     origin = psg[0, 0]
     acc = np.loadtxt(CROPPED / f"{subject}_cleaned_motion.out")
