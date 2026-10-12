@@ -211,7 +211,7 @@ def section_importance(adir):
     out = ["## 3. Важность признаков (leave-one-subject-out)"]
     subsets = read_csv(a / "A_subsets.csv")
     if subsets is not None:
-        out += ["**Качество на всех подмножествах признаков** (сон/бодрствование)",
+        out += ["**Качество на всех непустых подмножествах признаков** (сон/бодрствование)",
                 df_table(subsets, ["model", "subset", "accuracy@90", "wake_correct@90", "kappa@90", "auc",
                                    "auc_subject_mean", "f1_wake@90", "f1_macro@90"],
                          {"model": "модель", "subset": "признаки", "accuracy@90": "accuracy @90% сна",
@@ -667,7 +667,7 @@ def section_shapley_tables(adir):
     out = ["## Важность признаков по Шепли: все модели",
            "Два независимых взгляда, оба — leave-one-subject-out, для тех же моделей, что и в метриках статьи "
            "(`repro/09_paper_metrics.py`):",
-           "* **Значения Шепли по качеству.** Каждая модель переобучена на всех 7 подмножествах признаков "
+           "* **Значения Шепли по качеству.** Каждая модель переобучена на всех 7 непустых подмножествах признаков "
            "{motion, hr, clock}. «Игра» v(S) = метрика модели на признаках S − метрика случайной модели, которая "
            "говорит «сон» в 90% эпох наугад (accuracy, AUC 0.5, AP = доля wake, κ 0, F1 wake, macro F1). Значение Шепли — "
            "средний прирост метрики от признака по всем порядкам добавления; сумма по признакам = прирост полной "
@@ -694,7 +694,7 @@ def section_shapley_tables(adir):
         frame = subsets[["classifier", "feature_set"] + cols].copy()
         frame["classifier"] = frame.classifier.map(ru).where(~frame.classifier.duplicated(), "")
         frame.columns = ["модель", "признаки"] + [names[c] for c in cols]
-        out += ["### Качество на всех подмножествах признаков (сон/бодрствование, сон найден = 0.90)",
+        out += ["### Качество на всех непустых подмножествах признаков (сон/бодрствование, сон найден = 0.90)",
                 "Из этих чисел и складываются значения Шепли ниже. **Жирным** — лучшее подмножество у модели.",
                 md_table(bolded(frame.assign(_g=subsets.classifier.values),
                                 [names[c] for c in cols if c != "sleep_correct"], group="_g", drop=["_g"]),
@@ -757,7 +757,7 @@ GALLERY = [  # (папка относительно результатов, фа
     ("paper_metrics", "fig_summary_models.png", "Все модели и наборы признаков: AUC, κ, F1 wake"),
     ("paper_metrics", "fig_new_metrics.png", "Новые метрики: AP, PPV, macro F1 и F1 REM по всем моделям"),
     ("paper_metrics", "fig_f1_threshold_models.png", "F1 бодрствования в зависимости от порога, все модели"),
-    ("paper_metrics", "fig_shapley_auc.png", "Важность по Шепли: AUC на всех подмножествах признаков и вклад признаков"),
+    ("paper_metrics", "fig_shapley_auc.png", "Важность по Шепли: AUC на всех непустых подмножествах признаков и вклад признаков"),
     ("paper_metrics", "fig_shapley_metrics.png", "Значения Шепли по AUC, AP wake, κ и F1 wake, все модели"),
     ("paper_metrics", "fig_shapley_share.png", "Доля каждого признака в приросте качества (Шепли)"),
     ("paper_metrics", "fig_shap_mean_abs.png", "SHAP: mean |SHAP| и доля признаков, все модели"),

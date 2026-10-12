@@ -33,7 +33,7 @@
   fig_new_metrics, fig_f1_threshold_models   новые метрики: AP, PPV, F1, F1 в зависимости от порога
 Важность признаков по Шепли — для всех моделей (сон/бодрствование):
   shapley_subsets, shapley_values   точное разложение Шепли качества (AUC, AP wake, κ, F1 wake) по признакам
-                           motion, hr, clock: модели переобучаются на всех 7 подмножествах признаков (LOSO);
+                           motion, hr, clock: модели переобучаются на всех 7 непустых подмножествах признаков (LOSO);
                            рядом — drop-column (сколько теряем без признака) и качество признака в одиночку
   shap_mean_abs            SHAP-значения по эпохам: на сколько каждый признак сдвигает P(сон) у отложенного
                            человека (точный перебор 2^3 коалиций, одинаковый для всех моделей)
@@ -85,7 +85,7 @@ NAMES_RU = {"Logistic Regression": "логистическая регресси�
 FEATURE_SETS = {"Motion only": ["motion"], "HR only": ["hr"], "Motion, HR": ["motion", "hr"],
                 "Motion, HR, Clock": ["motion", "hr", "clock"]}
 SHAPLEY_FEATURES = ["motion", "hr", "clock"]
-# ещё 3 подмножества — вместе с наборами статьи это все 7 подмножеств {motion, hr, clock}, нужные для точного
+# ещё 3 подмножества — вместе с наборами статьи это все 7 непустых подмножеств {motion, hr, clock}, нужные для точного
 # разложения Шепли (только сон/бодрствование; в таблицы и рисунки статьи не идут)
 EXTRA_SETS = {"Clock only": ["clock"], "Motion, Clock": ["motion", "clock"], "HR, Clock": ["hr", "clock"]}
 ALL_SETS = {**FEATURE_SETS, **EXTRA_SETS}
@@ -248,7 +248,7 @@ def shapley_baseline(metric, y):
 def shapley_tables(data, models, y_all):
     """Точное разложение Шепли: игра v(S) = метрика модели на признаках S − метрика случайной модели.
     Значение Шепли признака — его средний прирост v по всем порядкам добавления признаков; сумма по признакам
-    равна v(все признаки). Возвращает качество на 7 подмножествах и значения Шепли."""
+    равна v(все признаки). Возвращает качество на 7 непустых подмножествах и значения Шепли."""
     subset_rows, value_rows = [], []
     n = len(SHAPLEY_FEATURES)
     for clf in models:
@@ -577,12 +577,12 @@ def fig_shapley_auc(subsets, values, models):
     axes[0].invert_yaxis()
     axes[0].set_xlim(0.5, min(1.0, subsets.auc.max() + 0.03))
     axes[0].set_xlabel("AUC сон/бодрствование (LOSO)")
-    axes[0].set_title("Качество на всех 7 подмножествах признаков", fontweight="bold", fontsize=10)
+    axes[0].set_title("Качество на всех 7 непустых подмножествах признаков", fontweight="bold", fontsize=10)
     axes[0].legend(fontsize=8, loc="lower right")
     style(axes[0])
     feature_bars(axes[1], values[values.metric == "auc"], "shapley", models,
                  "Значение Шепли: вклад признака в (AUC − 0.5)", "вклад в AUC")
-    fig.suptitle("Важность признаков по Шепли: модели переобучены на каждом подмножестве признаков, LOSO", fontsize=13)
+    fig.suptitle("Важность признаков по Шепли: модели переобучены на каждом непустом подмножестве признаков, LOSO", fontsize=13)
     save(fig, "fig_shapley_auc.png")
 
 
@@ -824,7 +824,7 @@ def main():
     fig_f1_threshold_models(preds_sw, Y_sw, models)
     figure_bar.update(status="общие рисунки")
 
-    # важность признаков по Шепли: модели, у которых посчитаны все 7 подмножеств признаков / SHAP-значения
+    # важность признаков по Шепли: модели, у которых посчитаны все 7 непустых подмножеств признаков / SHAP-значения
     shapley_models = [c for c in models if shapley_cached(c)]
     if shapley_models:
         subsets, values = shapley_tables(data, shapley_models, Y_sw)
