@@ -17,3 +17,6 @@ outputs/*
 !outputs/repro/
 outputs/repro/*
 !outputs/repro/ext_features/
+!outputs/repro/fast_features/
+outputs/repro/fast_features/*
+!outputs/repro/fast_features/*.npz
